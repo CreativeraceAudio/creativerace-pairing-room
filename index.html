@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pairing Room — CreativeRace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+  /* ============ DESIGN TOKENS ============ */
+  /* Layout concept: a dark screening room — one central "stage" where the
+     clip plays, sized automatically to the dropped file's own dimensions,
+     and a soundtrack deck underneath where the motion team dials in music. */
+  :root{
+    --ink: #0a0a0b;        /* page background — near-black, warm cast */
+    --surface: #1c1c1f;    /* panels / deck */
+    --surface-raised: #232327;
+    --border: #333338;
+    --fg: #f3f1ea;         /* off-white primary text */
+    --muted: #8d8c92;      /* secondary text */
+    --accent: #f4c91a;     /* CreativeRace yellow */
+    --accent-ink: #171300; /* text/icons on yellow */
+    --danger: #e2574c;
+
+    --font-display: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    color-scheme: dark;
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin:0; padding:0; }
+  body{
+    background: var(--ink);
+    color: var(--fg);
+    font-family: var(--font-body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 28px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  .wrap{ max-width: 1100px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+    padding-bottom: 22px; margin-bottom: 26px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand{ display:flex; flex-direction:column; gap:6px; }
+  .brand .logo{
+    display:block;
+    height: clamp(26px, 4vw, 34px);
+    width:auto;
+  }
+  .brand .product{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  header .howto{
+    font-size: 13px; color: var(--muted); max-width: 320px; text-align:right;
+  }
+  @media (max-width:560px){ header .howto{ text-align:left; } }
+
+  /* ---------- Studio (stage + orientation rail) ---------- */
+  .studio{ margin-bottom: 30px; }
+  .stage-row{
+    display:flex; align-items:stretch; justify-content:center;
+    gap: 18px; flex-wrap: wrap;
+  }
+
+  .stage{
+    position:relative;
+    background: var(--surface);
+    border-radius: 12px;
+    overflow:hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7);
+    width:100%;
+    align-self: flex-start; /* never let flex cross-axis stretch override the aspect-ratio-derived height */
+  }
+  .stage{ aspect-ratio: 16 / 9; } /* default until a clip sets its own */
+
+  .stage video{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit: contain; display:block; background:#000;
+  }
+
+  .dropzone{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; text-align:center; padding:24px;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    cursor:pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color: var(--accent);
+    background: #1a1808;
+  }
+  .dropzone svg{ width:34px; height:34px; stroke: var(--muted); }
+  .dropzone:hover svg, .dropzone.drag svg{ stroke: var(--accent); }
+  .dropzone p{ margin:0; font-weight:600; font-size:14px; color: var(--fg); }
+  .dropzone .sub{ display:block; margin-top:4px; font-weight:400; font-size:12px; color: var(--muted); font-family: var(--font-mono); letter-spacing: .5px; }
+
+  .stage-meta{
+    position:absolute; left:0; right:0; bottom:0;
+    display:flex; flex-direction:column; gap:8px;
+    padding: 10px 12px;
+    background: linear-gradient(to top, rgba(0,0,0,.88), rgba(0,0,0,0));
+    font-family: var(--font-mono); font-size: 11px; color: var(--fg);
+  }
+  .stage-meta-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stage-meta .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.9; }
+  .stage-meta button{
+    flex:none; font-family: var(--font-body); font-size:12px; font-weight:600;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; padding: 5px 10px; cursor:pointer;
+  }
+  .stage-meta button:hover{ background: rgba(255,255,255,.16); }
+
+  .clip-transport{ display:flex; align-items:center; gap:8px; }
+  .icon-btn{
+    flex:none; display:flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:50%;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+    color: var(--fg); cursor:pointer; padding:0;
+  }
+  .icon-btn:hover{ background: rgba(255,255,255,.18); }
+  .icon-btn svg{ width:12px; height:12px; }
+  .clip-time{ flex:none; font-family: var(--font-mono); font-size:10.5px; color: var(--muted); min-width: 30px; text-align:center; }
+
+  input[type="range"].seek{
+    flex:1; min-width:0; appearance:none; -webkit-appearance:none;
+    height:4px; border-radius:999px; background: rgba(255,255,255,.2);
+    accent-color: var(--accent); cursor:pointer;
+  }
+  input[type="range"].seek::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background: var(--accent); border:none; cursor:pointer;
+  }
+  input[type="range"].seek::-moz-range-thumb{
+    width:12px; height:12px; border-radius:50%; background: var(--accent); border:none; cursor:pointer;
+  }
+
+  @media (max-width: 760px){
+    .stage-row{ flex-direction:column; align-items:center; }
+    .stage{ align-self:center; }
+  }
+
+  /* ---------- Soundtrack deck ---------- */
+  .deck{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .deck-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    margin-bottom: 14px;
+  }
+  .deck-title{
+    font-family: var(--font-display); letter-spacing:.5px; font-size:22px; color: var(--fg);
+  }
+  .tabs{ display:flex; gap:6px; background: var(--ink); padding:4px; border-radius: 9px; border:1px solid var(--border); }
+  .tabs button{
+    border:none; background:transparent; color: var(--muted);
+    font-family: var(--font-body); font-weight:600; font-size: 13px;
+    padding: 7px 14px; border-radius:6px; cursor:pointer;
+  }
+  .tabs button.active{ background: var(--accent); color: var(--accent-ink); }
+
+  .panel{ min-height: 100px; }
+
+  .spotify-form{ display:flex; gap:8px; margin-bottom: 12px; }
+  .spotify-form input{
+    flex:1; min-width:0;
+    background: var(--ink); border: 1px solid var(--border); color: var(--fg);
+    border-radius: 8px; padding: 11px 12px; font-size: 14px; font-family: var(--font-body);
+  }
+  .spotify-form input::placeholder{ color: var(--muted); }
+  .spotify-form input:focus{ outline:none; border-color: var(--accent); }
+  .spotify-form button{
+    flex:none;
+    background: var(--accent); color: var(--accent-ink); border:none;
+    font-weight:700; font-size:14px; border-radius:8px; padding: 0 18px; cursor:pointer;
+  }
+  .spotify-form button:hover{ filter:brightness(1.05); }
+  .spotify-hint{ font-size:12px; color: var(--muted); margin: -4px 0 12px; }
+
+  #spotifyEmbed{ border-radius:10px; overflow:hidden; background:#000; min-height:0; }
+  #spotifyEmbed:empty{ display:none; }
+
+  .banner{
+    display:flex; align-items:flex-start; gap:8px;
+    background: #2a1f08; border: 1px solid #4a3a0e; color: #e8c86a;
+    border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height:1.4;
+    margin-bottom: 12px;
+  }
+  .banner.error{ background:#2a1212; border-color:#5a2424; color:#f0a6a0; }
+
+  .spotify-auth-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .login-btn{
+    display:flex; align-items:center; gap:8px;
+    background: var(--accent); color: var(--accent-ink); border:none;
+    font-family: var(--font-body); font-weight:700; font-size:13px;
+    border-radius: 999px; padding: 9px 16px; cursor:pointer;
+  }
+  .login-btn:hover{ filter:brightness(1.05); }
+  .login-btn:disabled{ opacity:.45; cursor:not-allowed; filter:none; }
+  .login-btn svg{ width:14px; height:14px; }
+
+  .spotify-account{ display:flex; align-items:center; gap:10px; font-size:13px; color: var(--fg); }
+  .spotify-account .dot{ width:7px; height:7px; border-radius:50%; background:#3dd16f; flex:none; }
+  .spotify-account button{
+    font-family: var(--font-body); font-size:12px; font-weight:600;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; cursor:pointer;
+  }
+  .spotify-account button:hover{ background: rgba(255,255,255,.16); }
+
+  .spotify-results{ margin-bottom:12px; }
+  .spotify-results:empty{ display:none; }
+  .result-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding: 9px 10px; border-radius:8px; cursor:pointer;
+    border: 1px solid transparent;
+  }
+  .result-row:hover{ background: var(--surface-raised); border-color: var(--border); }
+  .result-row .meta{ min-width:0; }
+  .result-row .t-name{ font-size:13.5px; font-weight:600; color: var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .result-row .t-artist{ font-size:12px; color: var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .result-row .play-pill{
+    flex:none; font-size:11px; font-weight:700; color: var(--accent-ink); background: var(--accent);
+    border-radius:999px; padding:4px 10px;
+  }
+
+  .now-playing{
+    display:flex; flex-direction:column; gap:10px;
+    border: 1px solid var(--border); border-radius:10px; padding: 12px 14px;
+    margin-bottom:12px; background: var(--surface-raised);
+  }
+  .now-playing .np-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .now-playing .np-meta{ min-width:0; }
+  .now-playing .np-label{ font-family: var(--font-mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color: var(--muted); }
+  .now-playing .np-name{ font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .now-playing .np-seek-row{ display:flex; align-items:center; gap:8px; }
+
+  .audio-drop{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    border: 2px dashed var(--border); border-radius:10px; padding: 22px;
+    cursor:pointer; text-align:center; color: var(--muted); font-size:14px; font-weight:600;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .audio-drop:hover, .audio-drop.drag{ border-color: var(--accent); background:#1a1808; color: var(--fg); }
+  .audio-drop svg{ width:20px; height:20px; stroke: currentColor; flex:none; }
+  .audio-loaded{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border: 1px solid var(--border); border-radius:10px; padding: 14px 14px;
+    font-family: var(--font-mono); font-size: 12.5px;
+  }
+  .audio-loaded .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .audio-loaded button{
+    flex:none; font-family: var(--font-body); font-size:12px; font-weight:600;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; cursor:pointer;
+  }
+  .audio-loaded button:hover{ background: rgba(255,255,255,.16); }
+
+  /* ---------- Transport ---------- */
+  .transport{
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  }
+  .transport-buttons{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+  .play-btn{
+    display:flex; align-items:center; gap:10px;
+    background: var(--accent); color: var(--accent-ink);
+    border:none; border-radius: 999px; padding: 12px 22px;
+    font-family: var(--font-body); font-weight:700; font-size: 15px; cursor:pointer;
+  }
+  .play-btn:hover{ filter:brightness(1.05); }
+  .play-btn svg{ width:16px; height:16px; }
+
+  .mute-toggle{
+    display:flex; align-items:center; gap:8px; font-size:13px; color: var(--muted);
+    user-select:none; cursor:pointer;
+  }
+  .mute-toggle input{ accent-color: var(--accent); width:15px; height:15px; cursor:pointer; }
+
+  .export-btn{ padding: 12px 20px; font-size: 14px; }
+  .export-btn:disabled{ opacity:.4; cursor:not-allowed; filter:none; }
+  .export-btn svg{ width:15px; height:15px; }
+  .export-status{
+    margin-top: 10px; font-size:12px; color: var(--muted);
+  }
+  .export-status:empty{ display:none; }
+
+  /* ---------- Saved pairings ---------- */
+  .saved-pairings{
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+  }
+  .saved-head{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;
+  }
+  .saved-title{
+    font-family: var(--font-mono); font-size: 11px; letter-spacing:1.5px;
+    text-transform:uppercase; color: var(--muted);
+  }
+  .save-btn{
+    font-family: var(--font-body); font-weight:700; font-size:12px;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 14px; cursor:pointer;
+  }
+  .save-btn:hover:not(:disabled){ background: rgba(255,255,255,.16); }
+  .save-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .saved-list{ display:flex; flex-direction:column; gap:8px; }
+  .saved-empty{ font-size:12.5px; color: var(--muted); }
+
+  .saved-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background: var(--surface-raised); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; cursor:pointer; transition: border-color .15s ease;
+  }
+  .saved-item:hover{ border-color: var(--accent); }
+  .saved-item-info{ min-width:0; }
+  .saved-item-name{
+    font-size: 13px; font-weight:600; color: var(--fg);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .saved-item-sub{
+    font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top:2px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .saved-item-actions{ display:flex; align-items:center; gap:6px; flex:none; }
+  .saved-load{
+    font-family: var(--font-body); font-weight:700; font-size:11px; color: var(--accent-ink); background: var(--accent);
+    border:none; border-radius:999px; padding:6px 12px; cursor:pointer;
+  }
+  .saved-load:hover{ filter:brightness(1.05); }
+  .saved-delete{
+    width:26px; height:26px; flex:none; display:flex; align-items:center; justify-content:center;
+    background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius:50%;
+    cursor:pointer; font-size:15px; line-height:1;
+  }
+  .saved-delete:hover{ color: var(--danger); border-color: var(--danger); }
+
+  footer{
+    max-width:1100px; margin: 28px auto 0; text-align:center;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing:.5px; color: #4a4a4f;
+  }
+
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <img class="logo" src="data:image/png;base64,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" alt="CreativeRace">
+      <div class="product">Pairing Room</div>
+    </div>
+    <div class="howto">Drop in a motion clip, choose a soundtrack from Spotify or your own file, then press play to preview them together.</div>
+  </header>
+
+  <section class="studio">
+    <div class="stage-row">
+      <div class="stage" id="stage">
+        <video id="video" muted loop playsinline></video>
+        <div class="dropzone" id="dropzone">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+          <p>Drag a motion file here, or click to browse<span class="sub">MP4 or MOV &middot; sized to match your clip</span></p>
+          <input type="file" id="fileInput" accept="video/*" hidden>
+        </div>
+        <div class="stage-meta" id="stageMeta" hidden>
+          <div class="clip-transport">
+            <button type="button" class="icon-btn" id="clipPlayBtn" aria-label="Play or pause the clip">
+              <svg id="clipPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <span class="clip-time" id="clipTimeCurrent">0:00</span>
+            <input type="range" class="seek" id="clipSeek" min="0" max="0" step="0.1" value="0">
+            <span class="clip-time" id="clipTimeDuration">0:00</span>
+          </div>
+          <div class="stage-meta-row">
+            <span class="name" id="stageFileName"></span>
+            <button id="changeClipBtn" type="button">Change clip</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="deck">
+    <div class="deck-head">
+      <div class="deck-title">Soundtrack</div>
+      <div class="tabs">
+        <button type="button" class="active" data-tab="spotify">Spotify</button>
+        <button type="button" data-tab="audio">Your audio</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-spotify">
+      <div class="banner" id="spotifyConfigBanner" hidden>Add your Spotify Client ID near the top of this file's script to turn on login and search. Paste-a-link still works below without it.</div>
+      <div class="banner error" id="spotifyErrorBanner" hidden></div>
+
+      <div class="spotify-auth-row">
+        <button type="button" class="login-btn" id="spotifyLoginBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.59 14.42a.62.62 0 0 1-.86.21c-2.36-1.44-5.33-1.77-8.84-.97a.62.62 0 1 1-.27-1.21c3.84-.88 7.13-.5 9.76 1.1.3.19.39.57.21.87zm1.22-2.72a.78.78 0 0 1-1.07.26c-2.7-1.66-6.82-2.14-10.02-1.17a.78.78 0 1 1-.45-1.49c3.65-1.1 8.19-.57 11.28 1.33.37.23.48.72.26 1.07zm.1-2.83C14.9 9.03 9.17 8.84 5.9 9.84a.93.93 0 1 1-.54-1.78c3.75-1.14 10.04-.92 14 1.4a.93.93 0 0 1-.95 1.6z"/></svg>
+          Log in with Spotify
+        </button>
+        <div class="spotify-account" id="spotifyAccountRow" hidden>
+          <span class="dot"></span>
+          <span id="spotifyUserName"></span>
+          <button type="button" id="spotifyLogoutBtn">Log out</button>
+        </div>
+      </div>
+      <div class="spotify-hint" id="spotifyHint">Logging in unlocks full-track playback and search — needs Spotify Premium. Without it, a pasted link still gives a 30-second preview.</div>
+
+      <form class="spotify-form" id="spotifySearchForm" hidden>
+        <input type="text" id="spotifySearchInput" placeholder="Search for a track">
+        <button type="submit">Search</button>
+      </form>
+      <div class="spotify-results" id="spotifyResults"></div>
+
+      <form class="spotify-form" id="spotifyForm">
+        <input type="url" id="spotifyLink" placeholder="Paste a Spotify track, album or playlist link" inputmode="url">
+        <button type="submit">Load</button>
+      </form>
+
+      <div class="now-playing" id="spotifyNowPlaying" hidden>
+        <div class="np-top">
+          <div class="np-meta">
+            <div class="np-label">Now loaded</div>
+            <div class="np-name" id="spotifyNowPlayingText"></div>
+          </div>
+        </div>
+        <div class="np-seek-row">
+          <span class="clip-time" id="spotifyTimeCurrent">0:00</span>
+          <input type="range" class="seek" id="spotifySeek" min="0" max="1000" step="1" value="0">
+          <span class="clip-time" id="spotifyTimeDuration">0:00</span>
+        </div>
+      </div>
+      <div id="spotifyEmbed"></div>
+    </div>
+
+    <div class="panel" id="panel-audio" hidden>
+      <div class="audio-drop" id="audioDrop">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <span>Drag an audio file here, or click to browse</span>
+        <input type="file" id="audioInput" accept="audio/*" hidden>
+      </div>
+      <div class="audio-loaded" id="audioLoaded" hidden>
+        <span class="name" id="audioFileName"></span>
+        <button id="changeAudioBtn" type="button">Change audio</button>
+      </div>
+      <audio id="audioEl" loop hidden></audio>
+    </div>
+
+    <div class="transport">
+      <div class="transport-buttons">
+        <button class="play-btn" id="playBtn" type="button">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span id="playLabel">Play</span>
+        </button>
+        <button class="play-btn export-btn" id="exportBtn" type="button" hidden disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          <span>Export MP4</span>
+        </button>
+      </div>
+      <label class="mute-toggle"><input type="checkbox" id="muteClip" checked> Mute clip's own audio</label>
+    </div>
+    <div class="export-status" id="exportStatus" hidden></div>
+
+    <div class="saved-pairings">
+      <div class="saved-head">
+        <div class="saved-title">Saved pairings</div>
+        <button type="button" class="save-btn" id="savePairingBtn" disabled>+ Save this pairing</button>
+      </div>
+      <div class="saved-list" id="savedList">
+        <div class="saved-empty" id="savedEmpty">Try a clip with a song, then save it here so you can flick back to it later.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>CreativeRace &middot; internal review tool &middot; not for distribution</footer>
+</div>
+
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+<script src="https://sdk.scdn.co/spotify-player.js" async></script>
+<script src="./vendor/ffmpeg/ffmpeg.js"></script>
+<script src="./vendor/ffmpeg/ffmpeg-util.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ======================================================================
+  // SPOTIFY SETUP — edit these two lines for your own deployment.
+  // 1. Create a free app at https://developer.spotify.com/dashboard
+  // 2. Add this page's exact URL as a Redirect URI in that app's settings
+  // 3. Paste the app's Client ID below (no Client Secret needed or used)
+  // ======================================================================
+  var SPOTIFY_CLIENT_ID = '6fbc8d1d15474b2881ed5c954a05df07';
+  var SPOTIFY_REDIRECT_URI = 'https://creativeraceaudio.github.io/creativerace-pairing-room/';
+  var SPOTIFY_SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state';
+  var SPOTIFY_CONFIGURED = SPOTIFY_CLIENT_ID.indexOf('PASTE_YOUR') !== 0;
+
+  // ---------- Elements ----------
+  var stage = document.getElementById('stage');
+  var video = document.getElementById('video');
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+  var stageMeta = document.getElementById('stageMeta');
+  var stageFileName = document.getElementById('stageFileName');
+  var changeClipBtn = document.getElementById('changeClipBtn');
+  var clipPlayBtn = document.getElementById('clipPlayBtn');
+  var clipPlayIcon = document.getElementById('clipPlayIcon');
+  var clipSeek = document.getElementById('clipSeek');
+  var clipTimeCurrent = document.getElementById('clipTimeCurrent');
+  var clipTimeDuration = document.getElementById('clipTimeDuration');
+
+  var tabButtons = document.querySelectorAll('.tabs button');
+  var panelSpotify = document.getElementById('panel-spotify');
+  var panelAudio = document.getElementById('panel-audio');
+
+  var spotifyForm = document.getElementById('spotifyForm');
+  var spotifyLink = document.getElementById('spotifyLink');
+  var spotifyEmbedHost = document.getElementById('spotifyEmbed');
+  var spotifyLoginBtn = document.getElementById('spotifyLoginBtn');
+  var spotifyAccountRow = document.getElementById('spotifyAccountRow');
+  var spotifyUserName = document.getElementById('spotifyUserName');
+  var spotifyLogoutBtn = document.getElementById('spotifyLogoutBtn');
+  var spotifyHint = document.getElementById('spotifyHint');
+  var spotifySearchForm = document.getElementById('spotifySearchForm');
+  var spotifySearchInput = document.getElementById('spotifySearchInput');
+  var spotifyResults = document.getElementById('spotifyResults');
+  var spotifyNowPlaying = document.getElementById('spotifyNowPlaying');
+  var spotifyNowPlayingText = document.getElementById('spotifyNowPlayingText');
+  var spotifySeek = document.getElementById('spotifySeek');
+  var spotifyTimeCurrent = document.getElementById('spotifyTimeCurrent');
+  var spotifyTimeDuration = document.getElementById('spotifyTimeDuration');
+  var spotifyConfigBanner = document.getElementById('spotifyConfigBanner');
+  var spotifyErrorBanner = document.getElementById('spotifyErrorBanner');
+
+  var audioDrop = document.getElementById('audioDrop');
+  var audioInput = document.getElementById('audioInput');
+  var audioLoaded = document.getElementById('audioLoaded');
+  var audioFileName = document.getElementById('audioFileName');
+  var changeAudioBtn = document.getElementById('changeAudioBtn');
+  var audioEl = document.getElementById('audioEl');
+
+  var playBtn = document.getElementById('playBtn');
+  var playIcon = document.getElementById('playIcon');
+  var playLabel = document.getElementById('playLabel');
+  var muteClip = document.getElementById('muteClip');
+  var exportBtn = document.getElementById('exportBtn');
+  var exportStatus = document.getElementById('exportStatus');
+  var savePairingBtn = document.getElementById('savePairingBtn');
+  var savedList = document.getElementById('savedList');
+  var savedEmpty = document.getElementById('savedEmpty');
+
+  var ICON_PLAY = '<path d="M8 5v14l11-7z"/>';
+  var ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  function formatTime(totalSeconds){
+    if (!isFinite(totalSeconds) || totalSeconds < 0) totalSeconds = 0;
+    totalSeconds = Math.floor(totalSeconds);
+    var m = Math.floor(totalSeconds / 60);
+    var s = totalSeconds % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  video.muted = muteClip.checked;
+
+  // ---------- Screen size: auto-detected from the dropped clip ----------
+  function applyDetectedSize(w, h){
+    if (!w || !h) return;
+    stage.style.aspectRatio = w + ' / ' + h;
+    if (w >= h){
+      stage.style.width = 'min(100%, 820px)';
+      stage.style.height = '';
+    } else {
+      stage.style.height = 'min(70vh, 640px)';
+      stage.style.width = 'auto';
+    }
+  }
+
+  function resetDetectedSize(){
+    stage.style.aspectRatio = '';
+    stage.style.width = '';
+    stage.style.height = '';
+  }
+
+  // ---------- Video drop / browse ----------
+  function loadVideoFile(file){
+    if (!file || file.type.indexOf('video') !== 0) return;
+    var url = URL.createObjectURL(file);
+    video.src = url;
+    video.load();
+    stageFileName.textContent = file.name;
+    dropzone.hidden = true;
+    stageMeta.hidden = false;
+    if (isPlaying) video.play().catch(function(){});
+    refreshExportState();
+    refreshSaveButtonState();
+  }
+
+  video.addEventListener('loadedmetadata', function(){
+    applyDetectedSize(video.videoWidth, video.videoHeight);
+    clipSeek.max = video.duration || 0;
+    clipSeek.value = 0;
+    clipTimeDuration.textContent = formatTime(video.duration);
+    clipTimeCurrent.textContent = '0:00';
+  });
+
+  var isSeekingClip = false;
+  video.addEventListener('timeupdate', function(){
+    if (!isSeekingClip) clipSeek.value = video.currentTime;
+    clipTimeCurrent.textContent = formatTime(video.currentTime);
+  });
+  video.addEventListener('play', function(){ clipPlayIcon.innerHTML = ICON_PAUSE; });
+  video.addEventListener('pause', function(){ clipPlayIcon.innerHTML = ICON_PLAY; });
+
+  clipPlayBtn.addEventListener('click', function(){
+    if (!video.src) return;
+    if (video.paused) video.play().catch(function(){}); else video.pause();
+  });
+  clipSeek.addEventListener('pointerdown', function(){ isSeekingClip = true; });
+  clipSeek.addEventListener('input', function(){ clipTimeCurrent.textContent = formatTime(Number(clipSeek.value)); });
+  clipSeek.addEventListener('change', function(){
+    video.currentTime = Number(clipSeek.value);
+    isSeekingClip = false;
+  });
+
+  dropzone.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(e){ loadVideoFile(e.target.files[0]); });
+
+  ['dragenter','dragover'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.remove('drag'); });
+  });
+  dropzone.addEventListener('drop', function(e){
+    e.preventDefault();
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    loadVideoFile(file);
+  });
+
+  changeClipBtn.addEventListener('click', function(){
+    dropzone.hidden = false;
+    stageMeta.hidden = true;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    resetDetectedSize();
+    clipSeek.value = 0;
+    clipSeek.max = 0;
+    clipTimeCurrent.textContent = '0:00';
+    clipTimeDuration.textContent = '0:00';
+    clipPlayIcon.innerHTML = ICON_PLAY;
+    refreshExportState();
+    refreshSaveButtonState();
+  });
+
+  muteClip.addEventListener('change', function(){ video.muted = muteClip.checked; });
+
+  // ---------- Tabs ----------
+  var currentAudioTab = 'spotify';
+  tabButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabButtons.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var tab = btn.getAttribute('data-tab');
+      panelSpotify.hidden = tab !== 'spotify';
+      panelAudio.hidden = tab !== 'audio';
+      currentAudioTab = tab;
+      refreshExportState();
+      refreshSaveButtonState();
+    });
+  });
+
+  // ---------- Spotify: embed fallback (no login) ----------
+  var spotifyController = null;
+  var spotifyEmbedQueue = null;
+  var spotifyMode = 'none'; // 'none' | 'embed' | 'sdk'
+
+  window.onSpotifyIframeApiReady = function(IFrameAPI){
+    window.__spotifyIFrameAPI = IFrameAPI;
+    if (spotifyEmbedQueue){
+      createSpotifyEmbed(IFrameAPI, spotifyEmbedQueue);
+      spotifyEmbedQueue = null;
+    }
+  };
+
+  function parseSpotifyUri(raw){
+    raw = (raw || '').trim();
+    var m = raw.match(/open\.spotify\.com\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/);
+    if (m) return 'spotify:' + m[1] + ':' + m[2];
+    m = raw.match(/spotify:(track|album|playlist|episode|show):([a-zA-Z0-9]+)/);
+    if (m) return 'spotify:' + m[1] + ':' + m[2];
+    return null;
+  }
+
+  function createSpotifyEmbed(IFrameAPI, uri){
+    spotifyNowPlaying.hidden = true;
+    stopSpotifyProgressPolling();
+    resetSpotifyProgressUI();
+    spotifyEmbedHost.innerHTML = '';
+    var el = document.createElement('div');
+    spotifyEmbedHost.appendChild(el);
+    IFrameAPI.createController(el, { uri: uri, width: '100%', height: '152' }, function(controller){
+      spotifyController = controller;
+      spotifyMode = 'embed';
+      if (isPlaying){
+        controller.addListener('ready', function(){ controller.resume(); });
+      }
+    });
+  }
+
+  function loadSpotifyEmbed(uri){
+    if (window.__spotifyIFrameAPI){
+      createSpotifyEmbed(window.__spotifyIFrameAPI, uri);
+    } else {
+      spotifyEmbedQueue = uri;
+    }
+  }
+
+  // ---------- Spotify: login (PKCE), search and full playback (SDK) ----------
+  var accessToken = null, refreshToken = null, tokenExpiresAt = 0;
+  var player = null, deviceId = null;
+  var TOKEN_KEY = 'pairingRoom.spotifyTokens';
+
+  function showConfigBanner(){ spotifyConfigBanner.hidden = false; spotifyLoginBtn.disabled = true; }
+  function showErrorBanner(msg){ spotifyErrorBanner.textContent = msg; spotifyErrorBanner.hidden = false; }
+  function clearErrorBanner(){ spotifyErrorBanner.hidden = true; }
+
+  function randomString(len){
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var out = '';
+    var vals = crypto.getRandomValues(new Uint8Array(len));
+    for (var i = 0; i < len; i++) out += chars[vals[i] % chars.length];
+    return out;
+  }
+  function base64url(buffer){
+    var bytes = new Uint8Array(buffer), str = '';
+    for (var i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function codeChallengeFrom(verifier){
+    var data = new TextEncoder().encode(verifier);
+    return crypto.subtle.digest('SHA-256', data).then(base64url);
+  }
+
+  function saveTokens(data){
+    accessToken = data.access_token;
+    if (data.refresh_token) refreshToken = data.refresh_token;
+    tokenExpiresAt = Date.now() + (data.expires_in * 1000);
+    try {
+      localStorage.setItem(TOKEN_KEY, JSON.stringify({ accessToken: accessToken, refreshToken: refreshToken, tokenExpiresAt: tokenExpiresAt }));
+    } catch(e){}
+  }
+  function loadStoredTokens(){
+    try {
+      var raw = localStorage.getItem(TOKEN_KEY);
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      accessToken = data.accessToken; refreshToken = data.refreshToken; tokenExpiresAt = data.tokenExpiresAt;
+      return !!refreshToken;
+    } catch(e){ return false; }
+  }
+  function clearTokens(){
+    accessToken = null; refreshToken = null; tokenExpiresAt = 0;
+    try { localStorage.removeItem(TOKEN_KEY); } catch(e){}
+  }
+
+  function startLogin(){
+    if (!SPOTIFY_CONFIGURED) return;
+    var verifier = randomString(64);
+    // localStorage rather than sessionStorage: some browsers/extensions clear
+    // sessionStorage during the round trip to Spotify's login page and back,
+    // which loses this one-time secret and makes Spotify reject the login
+    // with "code_verifier was invalid". localStorage survives that trip.
+    try { localStorage.setItem('pairingRoom.verifier', verifier); } catch(e){}
+    codeChallengeFrom(verifier).then(function(challenge){
+      var params = new URLSearchParams({
+        client_id: SPOTIFY_CLIENT_ID,
+        response_type: 'code',
+        redirect_uri: SPOTIFY_REDIRECT_URI,
+        scope: SPOTIFY_SCOPES,
+        code_challenge_method: 'S256',
+        code_challenge: challenge,
+        show_dialog: 'true'
+      });
+      window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+    });
+  }
+
+  function exchangeCodeForToken(code){
+    var verifier = localStorage.getItem('pairingRoom.verifier') || '';
+    try { localStorage.removeItem('pairingRoom.verifier'); } catch(e){}
+    var body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: SPOTIFY_REDIRECT_URI,
+      client_id: SPOTIFY_CLIENT_ID,
+      code_verifier: verifier
+    });
+    return fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    }).then(function(res){ return res.json(); });
+  }
+
+  function refreshAccessToken(){
+    if (!refreshToken) return Promise.reject(new Error('no refresh token'));
+    var body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: SPOTIFY_CLIENT_ID
+    });
+    return fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    }).then(function(res){ return res.json(); }).then(function(data){
+      if (!data.access_token) throw new Error('refresh failed');
+      saveTokens(data);
+      return accessToken;
+    });
+  }
+
+  function getValidToken(){
+    if (accessToken && Date.now() < tokenExpiresAt - 60000) return Promise.resolve(accessToken);
+    return refreshAccessToken();
+  }
+
+  function spotifyApi(path, options){
+    options = options || {};
+    return getValidToken().then(function(token){
+      options.headers = Object.assign({ Authorization: 'Bearer ' + token }, options.headers || {});
+      return fetch('https://api.spotify.com/v1' + path, options);
+    });
+  }
+
+  function onLoginSuccess(){
+    spotifyLoginBtn.hidden = true;
+    spotifyAccountRow.hidden = false;
+    spotifySearchForm.hidden = false;
+    spotifyHint.textContent = 'Connecting to Spotify…';
+    spotifyApi('/me').then(function(res){ return res.json(); }).then(function(me){
+      spotifyUserName.textContent = me.display_name || me.id || 'Connected';
+    });
+    initPlayer();
+  }
+
+  function initPlayer(){
+    if (!window.Spotify){ window.__initPlayerOnReady = true; return; }
+    if (player) return;
+    player = new Spotify.Player({
+      name: 'CreativeRace Pairing Room',
+      getOAuthToken: function(cb){ getValidToken().then(cb); },
+      volume: 0.8
+    });
+    player.addListener('ready', function(e){
+      deviceId = e.device_id;
+      spotifyHint.textContent = 'Logging in unlocks full-track playback and search — needs Spotify Premium.';
+    });
+    player.addListener('not_ready', function(){ deviceId = null; });
+    player.addListener('authentication_error', function(){ clearTokens(); renderLoggedOutUI(); });
+    player.addListener('account_error', function(){
+      showErrorBanner('This Spotify account doesn\'t have Premium, so full in-page playback isn\'t available. Use "paste a link" below for a preview instead.');
+    });
+    player.addListener('player_state_changed', function(state){
+      if (!state) return;
+      setPlayingUI(!state.paused);
+      updateSpotifyProgressUI(state.position, state.duration);
+      if (!state.paused) startSpotifyProgressPolling(); else stopSpotifyProgressPolling();
+    });
+    player.connect();
+  }
+
+  // ---------- Spotify: progress slider (SDK mode only) ----------
+  var isSeekingSpotify = false;
+  var spotifyProgressTimer = null;
+
+  function updateSpotifyProgressUI(positionMs, durationMs){
+    if (durationMs) spotifySeek.max = durationMs;
+    if (!isSeekingSpotify) spotifySeek.value = positionMs || 0;
+    spotifyTimeCurrent.textContent = formatTime((positionMs || 0) / 1000);
+    spotifyTimeDuration.textContent = formatTime((durationMs || 0) / 1000);
+  }
+
+  function resetSpotifyProgressUI(){
+    spotifySeek.value = 0;
+    spotifyTimeCurrent.textContent = '0:00';
+    spotifyTimeDuration.textContent = '0:00';
+  }
+
+  function startSpotifyProgressPolling(){
+    stopSpotifyProgressPolling();
+    spotifyProgressTimer = setInterval(function(){
+      if (!player || isSeekingSpotify) return;
+      player.getCurrentState().then(function(state){
+        if (!state) return;
+        updateSpotifyProgressUI(state.position, state.duration);
+      });
+    }, 500);
+  }
+
+  function stopSpotifyProgressPolling(){
+    if (spotifyProgressTimer){ clearInterval(spotifyProgressTimer); spotifyProgressTimer = null; }
+  }
+
+  spotifySeek.addEventListener('pointerdown', function(){ isSeekingSpotify = true; });
+  spotifySeek.addEventListener('input', function(){
+    spotifyTimeCurrent.textContent = formatTime(Number(spotifySeek.value) / 1000);
+  });
+  spotifySeek.addEventListener('change', function(){
+    var ms = Number(spotifySeek.value);
+    if (player) player.seek(ms).catch(function(){});
+    isSeekingSpotify = false;
+  });
+  window.onSpotifyWebPlaybackSDKReady = function(){
+    if (window.__initPlayerOnReady) initPlayer();
+  };
+
+  function playUriViaSdk(uri, label){
+    if (!deviceId){
+      showErrorBanner('Still connecting to Spotify — try again in a second.');
+      return;
+    }
+    clearErrorBanner();
+    var body = uri.indexOf(':track:') !== -1 ? { uris: [uri] } : { context_uri: uri };
+    spotifyApi('/me/player/play?device_id=' + deviceId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if (res.status === 403 || res.status === 404){
+        showErrorBanner('Full playback needs Spotify Premium on this account — showing a preview instead.');
+        loadSpotifyEmbed(uri);
+        return;
+      }
+      spotifyMode = 'sdk';
+      spotifyEmbedHost.innerHTML = '';
+      spotifyNowPlaying.hidden = false;
+      spotifyNowPlayingText.textContent = label || uri;
+      setPlayingUI(true);
+    }).catch(function(){
+      loadSpotifyEmbed(uri);
+    });
+  }
+
+  var currentSpotifyUri = null;
+  var currentSpotifyLabel = null;
+
+  function loadSpotifyThing(uri, label){
+    currentSpotifyUri = uri;
+    currentSpotifyLabel = label || uri;
+    if (accessToken && deviceId){
+      playUriViaSdk(uri, label);
+    } else {
+      loadSpotifyEmbed(uri);
+    }
+    refreshSaveButtonState();
+  }
+
+  function renderLoggedOutUI(){
+    spotifyLoginBtn.hidden = false;
+    spotifyAccountRow.hidden = true;
+    spotifySearchForm.hidden = true;
+    spotifyResults.innerHTML = '';
+    spotifyNowPlaying.hidden = true;
+    spotifyMode = 'none';
+    stopSpotifyProgressPolling();
+    resetSpotifyProgressUI();
+  }
+
+  function searchTracks(q){
+    return spotifyApi('/search?type=track&limit=8&q=' + encodeURIComponent(q))
+      .then(function(res){ return res.json(); })
+      .then(function(data){ return (data.tracks && data.tracks.items) || []; });
+  }
+
+  function renderResults(tracks){
+    spotifyResults.innerHTML = '';
+    tracks.forEach(function(t){
+      var row = document.createElement('div');
+      row.className = 'result-row';
+      var artists = (t.artists || []).map(function(a){ return a.name; }).join(', ');
+      row.innerHTML =
+        '<div class="meta"><div class="t-name"></div><div class="t-artist"></div></div>' +
+        '<span class="play-pill">Load</span>';
+      row.querySelector('.t-name').textContent = t.name;
+      row.querySelector('.t-artist').textContent = artists;
+      row.addEventListener('click', function(){
+        spotifyResults.innerHTML = '';
+        loadSpotifyThing(t.uri, t.name + ' — ' + artists);
+      });
+      spotifyResults.appendChild(row);
+    });
+  }
+
+  spotifyLoginBtn.addEventListener('click', startLogin);
+  spotifyLogoutBtn.addEventListener('click', function(){
+    clearTokens();
+    if (player){ player.disconnect(); player = null; }
+    deviceId = null;
+    renderLoggedOutUI();
+  });
+
+  spotifySearchForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var q = spotifySearchInput.value.trim();
+    if (!q) return;
+    searchTracks(q).then(renderResults);
+  });
+
+  spotifyForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var uri = parseSpotifyUri(spotifyLink.value);
+    if (!uri){
+      spotifyLink.focus();
+      return;
+    }
+    loadSpotifyThing(uri);
+  });
+
+  if (!SPOTIFY_CONFIGURED){
+    showConfigBanner();
+  } else {
+    (function handleRedirectOrRestore(){
+      var params = new URLSearchParams(window.location.search);
+      var code = params.get('code');
+      if (code){
+        exchangeCodeForToken(code).then(function(data){
+          // Always clear ?code=... from the address bar, whether this succeeds
+          // or fails — otherwise a failed attempt leaves a dead code stuck in
+          // the URL, and every later reload keeps retrying (and failing on)
+          // that same expired code instead of letting you log in fresh.
+          window.history.replaceState({}, document.title, SPOTIFY_REDIRECT_URI);
+          if (data.access_token){
+            saveTokens(data);
+            onLoginSuccess();
+          } else {
+            showErrorBanner('Spotify login did not complete. Please try again.' + (data.error_description ? ' (' + data.error_description + ')' : ''));
+          }
+        });
+      } else if (loadStoredTokens()){
+        onLoginSuccess();
+      }
+    })();
+  }
+
+  // ---------- Your audio ----------
+  function loadAudioFile(file){
+    if (!file || file.type.indexOf('audio') !== 0) return;
+    var url = URL.createObjectURL(file);
+    audioEl.src = url;
+    audioFileName.textContent = file.name;
+    audioDrop.hidden = true;
+    audioLoaded.hidden = false;
+    if (isPlaying) audioEl.play().catch(function(){});
+    refreshExportState();
+    refreshSaveButtonState();
+  }
+
+  audioDrop.addEventListener('click', function(){ audioInput.click(); });
+  audioInput.addEventListener('change', function(e){ loadAudioFile(e.target.files[0]); });
+
+  ['dragenter','dragover'].forEach(function(evt){
+    audioDrop.addEventListener(evt, function(e){ e.preventDefault(); audioDrop.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    audioDrop.addEventListener(evt, function(e){ e.preventDefault(); audioDrop.classList.remove('drag'); });
+  });
+  audioDrop.addEventListener('drop', function(e){
+    e.preventDefault();
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    loadAudioFile(file);
+  });
+
+  changeAudioBtn.addEventListener('click', function(){
+    audioDrop.hidden = false;
+    audioLoaded.hidden = true;
+    audioEl.pause();
+    audioEl.removeAttribute('src');
+    refreshExportState();
+    refreshSaveButtonState();
+  });
+
+  // ---------- Export MP4 (clip + your own audio file, baked together) ----------
+  // Runs entirely in the browser via ffmpeg.wasm — no upload, no server.
+  // Not available for Spotify: that audio is a protected stream, not a file
+  // CreativeRace has the rights to, so it can't be captured into a download.
+  var ffmpegInstance = null;
+  var ffmpegLoadingPromise = null;
+  var exportBusy = false;
+
+  function exportReady(){
+    return !!video.src && currentAudioTab === 'audio' && !!audioEl.src;
+  }
+
+  function refreshExportState(){
+    if (exportBusy) return;
+    var onAudioTab = currentAudioTab === 'audio';
+    exportBtn.hidden = !onAudioTab;
+    exportStatus.hidden = !onAudioTab;
+    if (!onAudioTab) return;
+    exportBtn.disabled = !exportReady();
+    if (!video.src) {
+      exportStatus.textContent = 'Drop in a motion clip to enable export.';
+    } else if (!audioEl.src) {
+      exportStatus.textContent = 'Add your audio file to enable export.';
+    } else {
+      exportStatus.textContent = 'Ready — exports the clip with this audio laid over it.';
+    }
+  }
+
+  function getFFmpeg(){
+    if (ffmpegInstance) return Promise.resolve(ffmpegInstance);
+    if (ffmpegLoadingPromise) return ffmpegLoadingPromise;
+    if (!window.FFmpegWASM || !window.FFmpegUtil) {
+      return Promise.reject(new Error('export engine did not load — check your connection and reload the page'));
+    }
+    exportStatus.textContent = 'Loading export engine (first time only, ~30MB)…';
+    var instance = new window.FFmpegWASM.FFmpeg();
+    // The small engine scripts are served from the same folder as this page
+    // (./vendor/ffmpeg/) rather than a CDN — loading them cross-origin hits a
+    // couple of real bugs in ffmpeg.js (a worker-construction security error,
+    // and a broken relative-URL fallback), and self-hosting sidesteps both so
+    // export doesn't depend on a third-party CDN being reachable at all.
+    // These must be resolved to absolute URLs: the ffmpeg.js build has a bug
+    // where a relative classWorkerURL gets resolved against a leftover
+    // build-machine path instead of this page, which breaks it. Supplying a
+    // classWorkerURL also makes ffmpeg.js run its worker as an ES module, so
+    // the core script must be the ESM build (not the UMD one) or it fails to
+    // load with "failed to import ffmpeg-core.js".
+    // The core's .wasm binary (~30MB) is the one piece still loaded from a
+    // CDN — it's a plain data fetch (not a script), so it isn't affected by
+    // those bugs, and keeping it off GitHub avoids GitHub's 25MB upload limit
+    // for files added through the web interface.
+    function absoluteUrl(path){ return new URL(path, document.baseURI).href; }
+    ffmpegLoadingPromise = instance.load({
+      coreURL: absoluteUrl('./vendor/ffmpeg/ffmpeg-core.esm.js'),
+      wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm',
+      classWorkerURL: absoluteUrl('./vendor/ffmpeg/814.ffmpeg.js')
+    }).then(function(){
+      ffmpegInstance = instance;
+      return instance;
+    }).catch(function(err){
+      ffmpegLoadingPromise = null;
+      throw err;
+    });
+    return ffmpegLoadingPromise;
+  }
+
+  function fileExt(name, fallback){
+    var m = /\.([a-z0-9]+)$/i.exec(name || '');
+    return m ? m[1].toLowerCase() : fallback;
+  }
+
+  function runExport(){
+    exportBusy = true;
+    exportBtn.disabled = true;
+    exportStatus.textContent = 'Preparing…';
+
+    var ffmpeg;
+    getFFmpeg().then(function(f){
+      ffmpeg = f;
+      exportStatus.textContent = 'Reading files…';
+      return Promise.all([
+        fetch(video.src).then(function(r){ return r.arrayBuffer(); }),
+        fetch(audioEl.src).then(function(r){ return r.arrayBuffer(); })
+      ]);
+    }).then(function(buffers){
+      var videoName = 'input_video.' + fileExt(stageFileName.textContent, 'mp4');
+      var audioName = 'input_audio.' + fileExt(audioFileName.textContent, 'mp3');
+      return ffmpeg.writeFile(videoName, new Uint8Array(buffers[0])).then(function(){
+        return ffmpeg.writeFile(audioName, new Uint8Array(buffers[1]));
+      }).then(function(){
+        exportStatus.textContent = 'Encoding… this can take a little while for longer or larger clips.';
+        var args = ['-i', videoName, '-i', audioName];
+        if (video.duration && isFinite(video.duration)) {
+          args = args.concat(['-t', video.duration.toFixed(2)]);
+        }
+        args = args.concat(['-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', 'output.mp4']);
+        return ffmpeg.exec(args);
+      }).then(function(){
+        return ffmpeg.readFile('output.mp4');
+      }).then(function(data){
+        var blob = new Blob([data], { type: 'video/mp4' });
+        var url = URL.createObjectURL(blob);
+        var base = (stageFileName.textContent || 'pairing-room').replace(/\.[a-z0-9]+$/i, '');
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = base + '-paired.mp4';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 15000);
+        exportStatus.textContent = 'Done — check your downloads.';
+      });
+    }).catch(function(err){
+      console.error(err);
+      exportStatus.textContent = 'Export failed: ' + (err && err.message ? err.message : 'something went wrong.');
+    }).then(function(){
+      exportBusy = false;
+      exportBtn.disabled = !exportReady();
+    });
+  }
+
+  exportBtn.addEventListener('click', function(){
+    if (exportBtn.disabled || exportBusy) return;
+    runExport();
+  });
+
+  refreshExportState();
+
+  // ---------- Saved pairings (stay on the page for this session) ----------
+  // Keeps a shortlist of clip+audio combos you've tried, so you can flick
+  // back to a favourite without re-uploading. Lives only in this browser tab
+  // for now — closing or reloading the page clears it.
+  var savedPairings = [];
+
+  function pairingReady(){
+    if (!video.src) return false;
+    if (currentAudioTab === 'audio') return !!audioEl.src;
+    if (currentAudioTab === 'spotify') return !!currentSpotifyUri;
+    return false;
+  }
+
+  function refreshSaveButtonState(){
+    savePairingBtn.disabled = !pairingReady();
+  }
+
+  function renderSavedPairings(){
+    savedList.querySelectorAll('.saved-item').forEach(function(el){ el.remove(); });
+    savedEmpty.hidden = savedPairings.length > 0;
+    savedPairings.forEach(function(p){
+      var row = document.createElement('div');
+      row.className = 'saved-item';
+
+      var info = document.createElement('div');
+      info.className = 'saved-item-info';
+      var name = document.createElement('div');
+      name.className = 'saved-item-name';
+      var audioLabel = p.audioMode === 'audio' ? p.audioName : p.spotifyLabel;
+      name.textContent = p.videoName + ' + ' + audioLabel;
+      var sub = document.createElement('div');
+      sub.className = 'saved-item-sub';
+      sub.textContent = p.audioMode === 'audio' ? 'Your audio' : 'Spotify';
+      info.appendChild(name);
+      info.appendChild(sub);
+
+      var actions = document.createElement('div');
+      actions.className = 'saved-item-actions';
+      var loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'saved-load';
+      loadBtn.textContent = 'Load';
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'saved-delete';
+      delBtn.setAttribute('aria-label', 'Delete saved pairing');
+      delBtn.textContent = '×';
+      actions.appendChild(loadBtn);
+      actions.appendChild(delBtn);
+
+      row.appendChild(info);
+      row.appendChild(actions);
+      savedList.appendChild(row);
+
+      function doLoad(){ loadSavedPairing(p); }
+      row.addEventListener('click', doLoad);
+      loadBtn.addEventListener('click', function(e){ e.stopPropagation(); doLoad(); });
+      delBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        savedPairings = savedPairings.filter(function(x){ return x.id !== p.id; });
+        renderSavedPairings();
+      });
+    });
+  }
+
+  function loadSavedPairing(p){
+    video.src = p.videoUrl;
+    video.load();
+    stageFileName.textContent = p.videoName;
+    dropzone.hidden = true;
+    stageMeta.hidden = false;
+
+    var targetTab = p.audioMode === 'audio' ? 'audio' : 'spotify';
+    var targetBtn = document.querySelector('.tabs button[data-tab="' + targetTab + '"]');
+    if (targetBtn && !targetBtn.classList.contains('active')) targetBtn.click();
+
+    if (p.audioMode === 'audio') {
+      audioEl.src = p.audioUrl;
+      audioFileName.textContent = p.audioName;
+      audioDrop.hidden = true;
+      audioLoaded.hidden = false;
+    } else {
+      loadSpotifyThing(p.spotifyUri, p.spotifyLabel);
+    }
+    refreshExportState();
+    refreshSaveButtonState();
+  }
+
+  savePairingBtn.addEventListener('click', function(){
+    if (!pairingReady()) return;
+    var pairing = {
+      id: 'p' + Date.now() + Math.random().toString(36).slice(2, 7),
+      videoUrl: video.src,
+      videoName: stageFileName.textContent || 'Clip'
+    };
+    if (currentAudioTab === 'audio') {
+      pairing.audioMode = 'audio';
+      pairing.audioUrl = audioEl.src;
+      pairing.audioName = audioFileName.textContent || 'Audio';
+    } else {
+      pairing.audioMode = 'spotify';
+      pairing.spotifyUri = currentSpotifyUri;
+      pairing.spotifyLabel = currentSpotifyLabel || currentSpotifyUri;
+    }
+    savedPairings.push(pairing);
+    renderSavedPairings();
+  });
+
+  refreshSaveButtonState();
+
+  // ---------- Master transport ----------
+  var isPlaying = false;
+
+  function setPlayingUI(playing){
+    isPlaying = playing;
+    playIcon.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+    playLabel.textContent = playing ? 'Pause' : 'Play';
+  }
+
+  playBtn.addEventListener('click', function(){
+    if (isPlaying){
+      video.pause();
+      if (spotifyMode === 'embed' && spotifyController) spotifyController.pause();
+      if (spotifyMode === 'sdk' && player) player.pause().catch(function(){});
+      audioEl.pause();
+      setPlayingUI(false);
+    } else {
+      if (video.src) video.play().catch(function(){});
+      if (spotifyMode === 'embed' && spotifyController) spotifyController.resume();
+      if (spotifyMode === 'sdk' && player) player.resume().catch(function(){});
+      if (audioEl.src) audioEl.play().catch(function(){});
+      setPlayingUI(true);
+    }
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA'){
+      e.preventDefault();
+      playBtn.click();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
