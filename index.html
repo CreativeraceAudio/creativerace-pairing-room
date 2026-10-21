@@ -1,0 +1,2318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pairing Room — CreativeRace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+  /* ============ DESIGN TOKENS ============ */
+  /* Layout concept: a dark screening room — one central "stage" where the
+     clip plays, sized automatically to the dropped file's own dimensions,
+     and a soundtrack deck underneath where the motion team dials in music. */
+  :root{
+    --ink: #0a0a0b;        /* page background — near-black, warm cast */
+    --surface: #1c1c1f;    /* panels / deck */
+    --surface-raised: #232327;
+    --border: #333338;
+    --fg: #f3f1ea;         /* off-white primary text */
+    --muted: #8d8c92;      /* secondary text */
+    --accent: #f4c91a;     /* CreativeRace yellow */
+    --accent-ink: #171300; /* text/icons on yellow */
+    --danger: #e2574c;
+
+    --font-display: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    color-scheme: dark;
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin:0; padding:0; }
+  body{
+    background: var(--ink);
+    color: var(--fg);
+    font-family: var(--font-body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 28px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  .wrap{ max-width: 1100px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+    padding-bottom: 22px; margin-bottom: 26px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand{ display:flex; flex-direction:column; gap:6px; }
+  .brand .logo{
+    display:block;
+    height: clamp(26px, 4vw, 34px);
+    width:auto;
+  }
+  .brand .product{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  header .howto{
+    font-size: 13px; color: var(--muted); max-width: 320px; text-align:right;
+  }
+  @media (max-width:560px){ header .howto{ text-align:left; } }
+
+  /* ---------- Studio (stage + orientation rail) ---------- */
+  .studio{ margin-bottom: 30px; }
+  .stage-row{
+    display:flex; align-items:stretch; justify-content:center;
+    gap: 18px; flex-wrap: wrap;
+  }
+
+  .stage{
+    position:relative;
+    background: var(--surface);
+    border-radius: 12px;
+    overflow:hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7);
+    flex: 1 1 480px;
+    max-width: 720px;
+    align-self: flex-start; /* never let flex cross-axis stretch override the aspect-ratio-derived height */
+  }
+  .stage{ aspect-ratio: 16 / 9; } /* default until a clip sets its own */
+
+  .stage video{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit: contain; display:block; background:#000;
+  }
+
+  .dropzone{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; text-align:center; padding:24px;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    cursor:pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color: var(--accent);
+    background: #1a1808;
+  }
+  .dropzone svg{ width:34px; height:34px; stroke: var(--muted); }
+  .dropzone:hover svg, .dropzone.drag svg{ stroke: var(--accent); }
+  .dropzone p{ margin:0; font-weight:600; font-size:14px; color: var(--fg); }
+  .dropzone .sub{ display:block; margin-top:4px; font-weight:400; font-size:12px; color: var(--muted); font-family: var(--font-mono); letter-spacing: .5px; }
+
+  .stage-meta{
+    position:absolute; left:0; right:0; bottom:0;
+    display:flex; flex-direction:column; gap:8px;
+    padding: 10px 12px;
+    background: linear-gradient(to top, rgba(0,0,0,.88), rgba(0,0,0,0));
+    font-family: var(--font-mono); font-size: 11px; color: var(--fg);
+  }
+  .stage-meta-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stage-meta .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.9; }
+  .stage-meta button{
+    flex:none; font-family: var(--font-body); font-size:12px; font-weight:600;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; padding: 5px 10px; cursor:pointer;
+  }
+  .stage-meta button:hover{ background: rgba(255,255,255,.16); }
+
+  .clip-transport{ display:flex; align-items:center; gap:8px; }
+  .icon-btn{
+    flex:none; display:flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:50%;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+    color: var(--fg); cursor:pointer; padding:0;
+  }
+  .icon-btn:hover{ background: rgba(255,255,255,.18); }
+  .icon-btn svg{ width:12px; height:12px; }
+  .clip-time{ flex:none; font-family: var(--font-mono); font-size:10.5px; color: var(--muted); min-width: 30px; text-align:center; }
+
+  input[type="range"].seek{
+    flex:1; min-width:0; appearance:none; -webkit-appearance:none;
+    height:4px; border-radius:999px; background: rgba(255,255,255,.2);
+    accent-color: var(--accent); cursor:pointer;
+  }
+  input[type="range"].seek::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background: var(--accent); border:none; cursor:pointer;
+  }
+  input[type="range"].seek::-moz-range-thumb{
+    width:12px; height:12px; border-radius:50%; background: var(--accent); border:none; cursor:pointer;
+  }
+
+  /* ---------- Trim controls (video clip + your-audio) ---------- */
+  .trim-row{ display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .trim-btn{
+    flex:none; font-family: var(--font-body); font-size:11px; font-weight:600;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; padding: 4px 9px; cursor:pointer;
+  }
+  .trim-btn:hover{ background: rgba(255,255,255,.16); }
+  .trim-label{
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--accent);
+    flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .trim-reset{
+    flex:none; font-family: var(--font-body); font-size:11px; font-weight:600;
+    background: transparent; color: var(--muted); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; padding: 4px 9px; cursor:pointer;
+  }
+  .trim-reset:hover{ color: var(--danger); border-color: var(--danger); }
+
+  /* ---------- Side panel (links out to Artlist's AI Toolkit) ---------- */
+  .side-panel{
+    flex: 1 1 260px;
+    max-width: 320px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .side-panel-title{ font-family: var(--font-display); letter-spacing:.5px; font-size:18px; color: var(--fg); }
+  .side-panel-sub{ font-family: var(--font-mono); font-size:10.5px; color: var(--muted); letter-spacing:.5px; margin-top:-6px; }
+  .quick-open-list{ display:flex; flex-direction:column; gap:8px; }
+  .side-panel-btn{
+    width:100%; font-family: var(--font-body); font-weight:700; font-size:13px;
+    background: var(--accent); color: var(--accent-ink); border:none;
+    border-radius: 8px; padding: 10px 12px; cursor:pointer;
+  }
+  .side-panel-btn:hover{ filter:brightness(1.05); }
+  .side-panel-note{ font-family: var(--font-mono); font-size:10px; line-height:1.5; color: var(--muted); }
+
+  @media (max-width: 760px){
+    .stage-row{ flex-direction:column; align-items:center; }
+    .stage{ align-self:center; width:100%; }
+    .side-panel{ max-width: 480px; width:100%; }
+  }
+
+  /* ---------- Soundtrack deck ---------- */
+  .deck{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .deck-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    margin-bottom: 14px;
+  }
+  .deck-title{
+    font-family: var(--font-display); letter-spacing:.5px; font-size:22px; color: var(--fg);
+  }
+  .tabs{ display:flex; gap:6px; background: var(--ink); padding:4px; border-radius: 9px; border:1px solid var(--border); }
+  .tabs button{
+    border:none; background:transparent; color: var(--muted);
+    font-family: var(--font-body); font-weight:600; font-size: 13px;
+    padding: 7px 14px; border-radius:6px; cursor:pointer;
+  }
+  .tabs button.active{ background: var(--accent); color: var(--accent-ink); }
+
+  .panel{ min-height: 100px; }
+
+  .spotify-form{ display:flex; gap:8px; margin-bottom: 12px; }
+  .spotify-form input{
+    flex:1; min-width:0;
+    background: var(--ink); border: 1px solid var(--border); color: var(--fg);
+    border-radius: 8px; padding: 11px 12px; font-size: 14px; font-family: var(--font-body);
+  }
+  .spotify-form input::placeholder{ color: var(--muted); }
+  .spotify-form input:focus{ outline:none; border-color: var(--accent); }
+  .spotify-form button{
+    flex:none;
+    background: var(--accent); color: var(--accent-ink); border:none;
+    font-weight:700; font-size:14px; border-radius:8px; padding: 0 18px; cursor:pointer;
+  }
+  .spotify-form button:hover{ filter:brightness(1.05); }
+  .spotify-hint{ font-size:12px; color: var(--muted); margin: -4px 0 12px; }
+
+  #spotifyEmbed{ border-radius:10px; overflow:hidden; background:#000; min-height:0; }
+  #spotifyEmbed:empty{ display:none; }
+
+  .banner{
+    display:flex; align-items:flex-start; gap:8px;
+    background: #2a1f08; border: 1px solid #4a3a0e; color: #e8c86a;
+    border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height:1.4;
+    margin-bottom: 12px;
+  }
+  .banner.error{ background:#2a1212; border-color:#5a2424; color:#f0a6a0; }
+
+  .spotify-auth-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .login-btn{
+    display:flex; align-items:center; gap:8px;
+    background: var(--accent); color: var(--accent-ink); border:none;
+    font-family: var(--font-body); font-weight:700; font-size:13px;
+    border-radius: 999px; padding: 9px 16px; cursor:pointer;
+  }
+  .login-btn:hover{ filter:brightness(1.05); }
+  .login-btn:disabled{ opacity:.45; cursor:not-allowed; filter:none; }
+  .login-btn svg{ width:14px; height:14px; }
+
+  .spotify-account{ display:flex; align-items:center; gap:10px; font-size:13px; color: var(--fg); }
+  .spotify-account .dot{ width:7px; height:7px; border-radius:50%; background:#3dd16f; flex:none; }
+  .spotify-account button{
+    font-family: var(--font-body); font-size:12px; font-weight:600;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; cursor:pointer;
+  }
+  .spotify-account button:hover{ background: rgba(255,255,255,.16); }
+
+  .spotify-results{ margin-bottom:12px; }
+  .spotify-results:empty{ display:none; }
+  .result-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding: 9px 10px; border-radius:8px; cursor:pointer;
+    border: 1px solid transparent;
+  }
+  .result-row:hover{ background: var(--surface-raised); border-color: var(--border); }
+  .result-row .meta{ min-width:0; }
+  .result-row .t-name{ font-size:13.5px; font-weight:600; color: var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .result-row .t-artist{ font-size:12px; color: var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .result-row .play-pill{
+    flex:none; font-size:11px; font-weight:700; color: var(--accent-ink); background: var(--accent);
+    border-radius:999px; padding:4px 10px;
+  }
+
+  .now-playing{
+    display:flex; flex-direction:column; gap:10px;
+    border: 1px solid var(--border); border-radius:10px; padding: 12px 14px;
+    margin-bottom:12px; background: var(--surface-raised);
+  }
+  .now-playing .np-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .now-playing .np-meta{ min-width:0; }
+  .now-playing .np-label{ font-family: var(--font-mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color: var(--muted); }
+  .now-playing .np-name{ font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .now-playing .np-seek-row{ display:flex; align-items:center; gap:8px; }
+
+  /* ---------- Your-audio multi-track mixer ---------- */
+  .mixer-empty{
+    font-size:13px; color: var(--muted); padding: 22px; text-align:center;
+    border: 2px dashed var(--border); border-radius:10px;
+  }
+  .mixer{ display:flex; flex-direction:column; gap:10px; }
+  .mixer-ruler{
+    display:flex; justify-content:space-between;
+    font-family: var(--font-mono); font-size:10px; color: var(--muted); padding: 0 2px;
+  }
+  .mixer-tracks{ display:flex; flex-direction:column; gap:10px; }
+  .mixer-track{
+    border: 1px solid var(--border); border-radius:10px; padding:10px;
+    background: var(--surface-raised);
+  }
+  .mixer-track-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .mixer-track-name{
+    font-size:12.5px; font-weight:600; flex:1 1 120px; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .mixer-vol{ display:flex; align-items:center; gap:6px; font-size:11px; color: var(--muted); flex:none; }
+  .mixer-vol input{ width:70px; accent-color: var(--accent); cursor:pointer; }
+  .mixer-fade{
+    display:flex; align-items:center; gap:5px; font-size:11px; color: var(--muted);
+    cursor:pointer; user-select:none; flex:none;
+  }
+  .mixer-fade input{ accent-color: var(--accent); cursor:pointer; }
+  .mixer-remove{
+    width:22px; height:22px; flex:none; display:flex; align-items:center; justify-content:center;
+    background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius:50%;
+    cursor:pointer; font-size:14px; line-height:1;
+  }
+  .mixer-remove:hover{ color: var(--danger); border-color: var(--danger); }
+  .mixer-track-lane{
+    position:relative; height:34px; background: rgba(255,255,255,.05); border-radius:6px;
+  }
+  .mixer-block{
+    position:absolute; top:0; bottom:0; background: var(--accent); border-radius:6px;
+    display:flex; align-items:center; justify-content:center; cursor:grab; min-width:18px;
+    touch-action:none;
+  }
+  .mixer-block:active{ cursor:grabbing; }
+  .mixer-block-label{
+    font-family: var(--font-mono); font-size:10px; color: var(--accent-ink); font-weight:700;
+    pointer-events:none; white-space:nowrap; overflow:hidden;
+  }
+  .mixer-handle{ position:absolute; top:0; bottom:0; width:9px; cursor:ew-resize; touch-action:none; }
+  .mixer-handle.left{ left:0; }
+  .mixer-handle.right{ right:0; }
+  .mixer-add-row{ display:flex; align-items:stretch; gap:12px; flex-wrap:wrap; }
+  .mixer-add-btn{
+    flex:1 1 180px;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    background: var(--accent); color: var(--accent-ink); border:none;
+    border-radius: 10px; padding: 18px 16px;
+    font-family: var(--font-body); font-weight:700; font-size:15px; cursor:pointer;
+  }
+  .mixer-add-btn:hover{ filter:brightness(1.05); }
+  .mixer-add-btn:disabled{ opacity:.4; cursor:not-allowed; filter:none; }
+  .mixer-add-btn svg{ width:18px; height:18px; flex:none; }
+  .mixer-add-btn.recording{ background: var(--danger); color:#fff; }
+  .mixer-add-btn .rec-dot{ display:none; }
+  .mixer-add-btn.recording .rec-dot{
+    display:inline-block; width:9px; height:9px; border-radius:50%; background:#fff; flex:none;
+    animation: rec-pulse 1s ease-in-out infinite;
+  }
+  @keyframes rec-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.25; } }
+
+  .vo-panel{
+    border: 1px solid var(--border); border-radius:10px; padding:14px;
+    background: var(--surface-raised); display:flex; flex-direction:column; gap:10px;
+  }
+  .vo-panel textarea{
+    width:100%; min-height:70px; resize:vertical;
+    background: var(--ink); border: 1px solid var(--border); color: var(--fg);
+    border-radius: 8px; padding: 10px 12px; font-size: 13.5px; font-family: var(--font-body);
+  }
+  .vo-panel textarea:focus{ outline:none; border-color: var(--accent); }
+  .vo-char-count{ font-family: var(--font-mono); font-size:10.5px; color: var(--muted); text-align:right; margin-top:-4px; }
+  .vo-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .vo-row label{ font-size:12px; color: var(--muted); display:flex; align-items:center; gap:8px; flex:1 1 180px; }
+  .vo-row select{
+    flex:1; min-width:0; background: var(--ink); border: 1px solid var(--border); color: var(--fg);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: var(--font-body);
+  }
+  .vo-row input[type=range]{ flex:1; accent-color: var(--accent); cursor:pointer; }
+  .vo-style-labels{ display:flex; justify-content:space-between; font-family: var(--font-mono); font-size:10px; color: var(--muted); margin-top:-6px; }
+  .vo-generate-btn{
+    align-self:flex-start;
+    background: var(--accent); color: var(--accent-ink); border:none;
+    font-family: var(--font-body); font-weight:700; font-size:13px;
+    border-radius: 999px; padding: 9px 18px; cursor:pointer;
+  }
+  .vo-generate-btn:hover{ filter:brightness(1.05); }
+  .vo-generate-btn:disabled{ opacity:.45; cursor:not-allowed; filter:none; }
+  .vo-status{ font-size:12px; color: var(--muted); }
+  .vo-status.vo-error{ color: var(--danger); }
+
+  /* ---------- Transport ---------- */
+  .transport{
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  }
+  .transport-buttons{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+  .play-btn{
+    display:flex; align-items:center; gap:10px;
+    background: var(--accent); color: var(--accent-ink);
+    border:none; border-radius: 999px; padding: 12px 22px;
+    font-family: var(--font-body); font-weight:700; font-size: 15px; cursor:pointer;
+  }
+  .play-btn:hover{ filter:brightness(1.05); }
+  .play-btn svg{ width:16px; height:16px; }
+
+  .mute-toggle{
+    display:flex; align-items:center; gap:8px; font-size:13px; color: var(--muted);
+    user-select:none; cursor:pointer;
+  }
+  .mute-toggle input{ accent-color: var(--accent); width:15px; height:15px; cursor:pointer; }
+
+  .export-btn{ padding: 12px 20px; font-size: 14px; }
+  .export-btn:disabled{ opacity:.4; cursor:not-allowed; filter:none; }
+  .export-btn svg{ width:15px; height:15px; }
+  .export-status{
+    margin-top: 10px; font-size:12px; color: var(--muted);
+  }
+  .export-status:empty{ display:none; }
+
+  /* ---------- Saved pairings ---------- */
+  .saved-pairings{
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+  }
+  .saved-head{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;
+  }
+  .saved-title{
+    font-family: var(--font-mono); font-size: 11px; letter-spacing:1.5px;
+    text-transform:uppercase; color: var(--muted);
+  }
+  .save-btn{
+    font-family: var(--font-body); font-weight:700; font-size:12px;
+    background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 14px; cursor:pointer;
+  }
+  .save-btn:hover:not(:disabled){ background: rgba(255,255,255,.16); }
+  .save-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .saved-list{ display:flex; flex-direction:column; gap:8px; }
+  .saved-empty{ font-size:12.5px; color: var(--muted); }
+
+  .saved-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background: var(--surface-raised); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; cursor:pointer; transition: border-color .15s ease;
+  }
+  .saved-item:hover{ border-color: var(--accent); }
+  .saved-item-info{ min-width:0; }
+  .saved-item-name{
+    font-size: 13px; font-weight:600; color: var(--fg);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .saved-item-sub{
+    font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top:2px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .saved-item-actions{ display:flex; align-items:center; gap:6px; flex:none; }
+  .saved-load{
+    font-family: var(--font-body); font-weight:700; font-size:11px; color: var(--accent-ink); background: var(--accent);
+    border:none; border-radius:999px; padding:6px 12px; cursor:pointer;
+  }
+  .saved-load:hover{ filter:brightness(1.05); }
+  .saved-delete{
+    width:26px; height:26px; flex:none; display:flex; align-items:center; justify-content:center;
+    background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius:50%;
+    cursor:pointer; font-size:15px; line-height:1;
+  }
+  .saved-delete:hover{ color: var(--danger); border-color: var(--danger); }
+
+  footer{
+    max-width:1100px; margin: 28px auto 0; text-align:center;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing:.5px; color: #4a4a4f;
+  }
+
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <img class="logo" src="data:image/png;base64,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" alt="CreativeRace">
+      <div class="product">Pairing Room</div>
+    </div>
+    <div class="howto">Drop in a motion clip, choose a soundtrack from Spotify or your own file, then press play to preview them together.</div>
+  </header>
+
+  <section class="studio">
+    <div class="stage-row">
+      <div class="stage" id="stage">
+        <video id="video" muted playsinline></video>
+        <div class="dropzone" id="dropzone">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+          <p>Drag a motion file here, or click to browse<span class="sub">MP4 or MOV &middot; sized to match your clip</span></p>
+          <input type="file" id="fileInput" accept="video/*" hidden>
+        </div>
+        <div class="stage-meta" id="stageMeta" hidden>
+          <div class="clip-transport">
+            <button type="button" class="icon-btn" id="clipPlayBtn" aria-label="Play or pause the clip">
+              <svg id="clipPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <span class="clip-time" id="clipTimeCurrent">0:00</span>
+            <input type="range" class="seek" id="clipSeek" min="0" max="0" step="0.1" value="0">
+            <span class="clip-time" id="clipTimeDuration">0:00</span>
+          </div>
+          <div class="trim-row">
+            <button type="button" class="trim-btn" id="clipSetInBtn">Set start</button>
+            <button type="button" class="trim-btn" id="clipSetOutBtn">Set end</button>
+            <span class="trim-label" id="clipTrimLabel"></span>
+            <button type="button" class="trim-reset" id="clipTrimResetBtn" hidden title="Clear trim">Reset</button>
+          </div>
+          <div class="stage-meta-row">
+            <span class="name" id="stageFileName"></span>
+            <button id="changeClipBtn" type="button">Change clip</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-panel" id="artlistPanel">
+        <div class="side-panel-title">Need a clip?</div>
+        <div class="side-panel-sub">QUICK OPEN</div>
+        <div class="quick-open-list">
+          <button type="button" class="side-panel-btn quick-open-btn" data-url="https://toolkit.artlist.io">Artlist AI Toolkit</button>
+          <button type="button" class="side-panel-btn quick-open-btn" data-url="https://firefly.adobe.com">Adobe Firefly</button>
+          <button type="button" class="side-panel-btn quick-open-btn" data-url="https://chatgpt.com">ChatGPT</button>
+          <button type="button" class="side-panel-btn quick-open-btn" data-url="https://www.youtube.com">YouTube</button>
+        </div>
+        <div class="side-panel-note">Opens in a new tab. Generate or find your clip there, then drop the download in here on the left.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="deck">
+    <div class="deck-head">
+      <div class="deck-title">Soundtrack</div>
+      <div class="tabs">
+        <button type="button" class="active" data-tab="spotify">Spotify</button>
+        <button type="button" data-tab="audio">Your audio</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-spotify">
+      <div class="banner" id="spotifyConfigBanner" hidden>Add your Spotify Client ID near the top of this file's script to turn on login and search. Paste-a-link still works below without it.</div>
+      <div class="banner error" id="spotifyErrorBanner" hidden></div>
+
+      <div class="spotify-auth-row">
+        <button type="button" class="login-btn" id="spotifyLoginBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.59 14.42a.62.62 0 0 1-.86.21c-2.36-1.44-5.33-1.77-8.84-.97a.62.62 0 1 1-.27-1.21c3.84-.88 7.13-.5 9.76 1.1.3.19.39.57.21.87zm1.22-2.72a.78.78 0 0 1-1.07.26c-2.7-1.66-6.82-2.14-10.02-1.17a.78.78 0 1 1-.45-1.49c3.65-1.1 8.19-.57 11.28 1.33.37.23.48.72.26 1.07zm.1-2.83C14.9 9.03 9.17 8.84 5.9 9.84a.93.93 0 1 1-.54-1.78c3.75-1.14 10.04-.92 14 1.4a.93.93 0 0 1-.95 1.6z"/></svg>
+          Log in with Spotify
+        </button>
+        <div class="spotify-account" id="spotifyAccountRow" hidden>
+          <span class="dot"></span>
+          <span id="spotifyUserName"></span>
+          <button type="button" id="spotifyLogoutBtn">Log out</button>
+        </div>
+      </div>
+      <div class="spotify-hint" id="spotifyHint">Logging in unlocks full-track playback and search — needs Spotify Premium. Without it, a pasted link still gives a 30-second preview.</div>
+
+      <form class="spotify-form" id="spotifySearchForm" hidden>
+        <input type="text" id="spotifySearchInput" placeholder="Search for a track">
+        <button type="submit">Search</button>
+      </form>
+      <div class="spotify-results" id="spotifyResults"></div>
+
+      <form class="spotify-form" id="spotifyForm">
+        <input type="url" id="spotifyLink" placeholder="Paste a Spotify track, album or playlist link" inputmode="url">
+        <button type="submit">Load</button>
+      </form>
+
+      <div class="now-playing" id="spotifyNowPlaying" hidden>
+        <div class="np-top">
+          <div class="np-meta">
+            <div class="np-label">Now loaded</div>
+            <div class="np-name" id="spotifyNowPlayingText"></div>
+          </div>
+        </div>
+        <div class="np-seek-row">
+          <span class="clip-time" id="spotifyTimeCurrent">0:00</span>
+          <input type="range" class="seek" id="spotifySeek" min="0" max="1000" step="1" value="0">
+          <span class="clip-time" id="spotifyTimeDuration">0:00</span>
+        </div>
+        <div class="trim-row">
+          <button type="button" class="trim-btn" id="spotifySetInBtn">Set start</button>
+          <button type="button" class="trim-btn" id="spotifySetOutBtn">Set end</button>
+          <span class="trim-label" id="spotifyTrimLabel"></span>
+          <button type="button" class="trim-reset" id="spotifyTrimResetBtn" hidden title="Clear trim">Reset</button>
+        </div>
+      </div>
+      <div id="spotifyEmbed"></div>
+    </div>
+
+    <div class="panel" id="panel-audio" hidden>
+      <div class="mixer-empty" id="mixerEmptyMsg">Drop in a motion clip above first — audio tracks are positioned against its timeline.</div>
+      <div class="mixer" id="audioMixer" hidden>
+        <div class="mixer-ruler" id="mixerRuler"><span>0:00</span><span>0:00</span></div>
+        <div class="mixer-tracks" id="mixerTracks"></div>
+        <div class="mixer-add-row">
+          <button type="button" class="mixer-add-btn" id="addTrackBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            Add audio track
+          </button>
+          <button type="button" class="mixer-add-btn" id="recordVoiceoverBtn">
+            <span class="rec-dot"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+            <span id="recordBtnLabel">Record voiceover</span>
+          </button>
+          <button type="button" class="mixer-add-btn" id="generateVoiceoverBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 0-4 4v1a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="m4 5 1.5 1.5M20 5l-1.5 1.5M4 2l1 1M20 2l-1 1"/></svg>
+            Generate AI voiceover
+          </button>
+          <input type="file" id="audioTrackInput" accept="audio/*" hidden>
+        </div>
+        <div class="vo-panel" id="voPanel" hidden>
+          <label for="voText" class="side-panel-note" style="margin:0;">Type the voiceover script, then pick a voice and style.</label>
+          <textarea id="voText" placeholder="Type what you want the voiceover to say…" maxlength="600"></textarea>
+          <div class="vo-char-count"><span id="voCharCount">0</span> / 600</div>
+          <div class="vo-row">
+            <label for="voVoiceSelect">Voice
+              <select id="voVoiceSelect"><option value="">Loading voices…</option></select>
+            </label>
+          </div>
+          <div class="vo-row">
+            <label for="voStyleRange" style="flex:1 1 100%;">Style
+              <input type="range" id="voStyleRange" min="0" max="100" value="20">
+            </label>
+          </div>
+          <div class="vo-style-labels"><span>Calm, steady</span><span>Expressive, dynamic</span></div>
+          <button type="button" class="vo-generate-btn" id="voGenerateBtn">Generate</button>
+          <div class="vo-status" id="voStatus" hidden></div>
+        </div>
+        <div class="banner error" id="voiceoverErrorBanner" hidden></div>
+        <span class="side-panel-note" id="trackLimitNote" hidden>Up to 3 tracks — remove one to add another.</span>
+      </div>
+    </div>
+
+    <div class="transport">
+      <div class="transport-buttons">
+        <button class="play-btn" id="playBtn" type="button">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span id="playLabel">Play</span>
+        </button>
+        <button class="play-btn export-btn" id="exportBtn" type="button" hidden disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          <span>Export MP4</span>
+        </button>
+      </div>
+      <label class="mute-toggle"><input type="checkbox" id="muteClip" checked> Mute clip's own audio</label>
+    </div>
+    <div class="export-status" id="exportStatus" hidden></div>
+
+    <div class="saved-pairings">
+      <div class="saved-head">
+        <div class="saved-title">Saved pairings</div>
+        <button type="button" class="save-btn" id="savePairingBtn" disabled>+ Save this pairing</button>
+      </div>
+      <div class="saved-list" id="savedList">
+        <div class="saved-empty" id="savedEmpty">Try a clip with a song, then save it here so you can flick back to it later.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>CreativeRace &middot; internal review tool &middot; not for distribution</footer>
+</div>
+
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+<script src="https://sdk.scdn.co/spotify-player.js" async></script>
+<script src="./vendor/ffmpeg/ffmpeg.js"></script>
+<script src="./vendor/ffmpeg/ffmpeg-util.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ======================================================================
+  // SPOTIFY SETUP — edit these two lines for your own deployment.
+  // 1. Create a free app at https://developer.spotify.com/dashboard
+  // 2. Add this page's exact URL as a Redirect URI in that app's settings
+  // 3. Paste the app's Client ID below (no Client Secret needed or used)
+  // ======================================================================
+  var SPOTIFY_CLIENT_ID = '6fbc8d1d15474b2881ed5c954a05df07';
+  var SPOTIFY_REDIRECT_URI = 'https://creativeraceaudio.github.io/creativerace-pairing-room/';
+  var SPOTIFY_SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state';
+  var SPOTIFY_CONFIGURED = SPOTIFY_CLIENT_ID.indexOf('PASTE_YOUR') !== 0;
+
+  // ======================================================================
+  // AI VOICEOVER SETUP — points at the small Cloudflare Worker proxy that
+  // holds the real ElevenLabs API key (see pairing-room-vo-worker.js). This
+  // page never talks to ElevenLabs directly — only to this Worker, which is
+  // the only thing that knows the real key.
+  // ======================================================================
+  var VO_WORKER_URL = 'https://cr-pairing-room-vo.thomas-bethell.workers.dev';
+  var VO_APP_TOKEN = '9ZyCZfIywmzUiPW3sohaOTSX1_LeP0zu';
+  var VO_MAX_CHARS = 600; // matches the Worker's own cap
+
+  // ---------- Elements ----------
+  var stage = document.getElementById('stage');
+  var video = document.getElementById('video');
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+  var stageMeta = document.getElementById('stageMeta');
+  var stageFileName = document.getElementById('stageFileName');
+  var changeClipBtn = document.getElementById('changeClipBtn');
+  var quickOpenBtns = document.querySelectorAll('.quick-open-btn');
+  var clipPlayBtn = document.getElementById('clipPlayBtn');
+  var clipPlayIcon = document.getElementById('clipPlayIcon');
+  var clipSeek = document.getElementById('clipSeek');
+  var clipTimeCurrent = document.getElementById('clipTimeCurrent');
+  var clipTimeDuration = document.getElementById('clipTimeDuration');
+  var clipSetInBtn = document.getElementById('clipSetInBtn');
+  var clipSetOutBtn = document.getElementById('clipSetOutBtn');
+  var clipTrimLabel = document.getElementById('clipTrimLabel');
+  var clipTrimResetBtn = document.getElementById('clipTrimResetBtn');
+
+  var tabButtons = document.querySelectorAll('.tabs button');
+  var panelSpotify = document.getElementById('panel-spotify');
+  var panelAudio = document.getElementById('panel-audio');
+
+  var spotifyForm = document.getElementById('spotifyForm');
+  var spotifyLink = document.getElementById('spotifyLink');
+  var spotifyEmbedHost = document.getElementById('spotifyEmbed');
+  var spotifyLoginBtn = document.getElementById('spotifyLoginBtn');
+  var spotifyAccountRow = document.getElementById('spotifyAccountRow');
+  var spotifyUserName = document.getElementById('spotifyUserName');
+  var spotifyLogoutBtn = document.getElementById('spotifyLogoutBtn');
+  var spotifyHint = document.getElementById('spotifyHint');
+  var spotifySearchForm = document.getElementById('spotifySearchForm');
+  var spotifySearchInput = document.getElementById('spotifySearchInput');
+  var spotifyResults = document.getElementById('spotifyResults');
+  var spotifyNowPlaying = document.getElementById('spotifyNowPlaying');
+  var spotifyNowPlayingText = document.getElementById('spotifyNowPlayingText');
+  var spotifySeek = document.getElementById('spotifySeek');
+  var spotifyTimeCurrent = document.getElementById('spotifyTimeCurrent');
+  var spotifyTimeDuration = document.getElementById('spotifyTimeDuration');
+  var spotifyConfigBanner = document.getElementById('spotifyConfigBanner');
+  var spotifyErrorBanner = document.getElementById('spotifyErrorBanner');
+  var spotifySetInBtn = document.getElementById('spotifySetInBtn');
+  var spotifySetOutBtn = document.getElementById('spotifySetOutBtn');
+  var spotifyTrimLabel = document.getElementById('spotifyTrimLabel');
+  var spotifyTrimResetBtn = document.getElementById('spotifyTrimResetBtn');
+
+  var mixerEmptyMsg = document.getElementById('mixerEmptyMsg');
+  var audioMixer = document.getElementById('audioMixer');
+  var mixerRuler = document.getElementById('mixerRuler');
+  var mixerTracks = document.getElementById('mixerTracks');
+  var addTrackBtn = document.getElementById('addTrackBtn');
+  var trackLimitNote = document.getElementById('trackLimitNote');
+  var audioTrackInput = document.getElementById('audioTrackInput');
+  var recordVoiceoverBtn = document.getElementById('recordVoiceoverBtn');
+  var recordBtnLabel = document.getElementById('recordBtnLabel');
+  var voiceoverErrorBanner = document.getElementById('voiceoverErrorBanner');
+  var generateVoiceoverBtn = document.getElementById('generateVoiceoverBtn');
+  var voPanel = document.getElementById('voPanel');
+  var voText = document.getElementById('voText');
+  var voCharCount = document.getElementById('voCharCount');
+  var voVoiceSelect = document.getElementById('voVoiceSelect');
+  var voStyleRange = document.getElementById('voStyleRange');
+  var voGenerateBtn = document.getElementById('voGenerateBtn');
+  var voStatus = document.getElementById('voStatus');
+
+  var playBtn = document.getElementById('playBtn');
+  var playIcon = document.getElementById('playIcon');
+  var playLabel = document.getElementById('playLabel');
+  var muteClip = document.getElementById('muteClip');
+  var exportBtn = document.getElementById('exportBtn');
+  var exportStatus = document.getElementById('exportStatus');
+  var savePairingBtn = document.getElementById('savePairingBtn');
+  var savedList = document.getElementById('savedList');
+  var savedEmpty = document.getElementById('savedEmpty');
+
+  var ICON_PLAY = '<path d="M8 5v14l11-7z"/>';
+  var ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  function formatTime(totalSeconds){
+    if (!isFinite(totalSeconds) || totalSeconds < 0) totalSeconds = 0;
+    totalSeconds = Math.floor(totalSeconds);
+    var m = Math.floor(totalSeconds / 60);
+    var s = totalSeconds % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  video.muted = muteClip.checked;
+
+  // ---------- Trim points (clip, your-audio, Spotify) ----------
+  // Each media has an in-point and an out-point (null = "to the end"). During
+  // preview, playback loops between them instead of the whole file, and
+  // pressing play snaps back into the trimmed window if currentTime has
+  // drifted outside it. The video/your-audio trims also shape the export.
+  var videoTrimIn = 0, videoTrimOut = null;
+  var spotifyTrimIn = 0, spotifyTrimOut = null; // preview-only — Spotify still can't be exported
+
+  function trimGradient(inPoint, outPoint, duration){
+    if (!isFinite(duration) || duration <= 0) return '';
+    var inPct = Math.max(0, Math.min(100, (inPoint / duration) * 100));
+    var outVal = (outPoint != null) ? outPoint : duration;
+    var outPct = Math.max(inPct, Math.min(100, (outVal / duration) * 100));
+    return 'linear-gradient(to right, rgba(255,255,255,.2) 0%, rgba(255,255,255,.2) ' + inPct + '%, var(--accent) ' + inPct + '%, var(--accent) ' + outPct + '%, rgba(255,255,255,.2) ' + outPct + '%, rgba(255,255,255,.2) 100%)';
+  }
+
+  function updateTrimUI(inPoint, outPoint, duration, seekEl, labelEl, resetBtn){
+    var hasTrim = inPoint > 0.05 || (outPoint != null);
+    resetBtn.hidden = !hasTrim;
+    if (!hasTrim){
+      labelEl.textContent = '';
+    } else {
+      var outDisplay = (outPoint != null) ? outPoint : duration;
+      var durText = (isFinite(outDisplay) && isFinite(inPoint)) ? ' (' + formatTime(outDisplay - inPoint) + ')' : '';
+      labelEl.textContent = formatTime(inPoint) + '–' + formatTime(outDisplay) + durText;
+    }
+    var grad = trimGradient(inPoint, outPoint, duration);
+    if (grad) seekEl.style.background = grad;
+  }
+
+  function updateClipTrimUI(){ updateTrimUI(videoTrimIn, videoTrimOut, video.duration, clipSeek, clipTrimLabel, clipTrimResetBtn); }
+  function updateSpotifyTrimUI(){ updateTrimUI(spotifyTrimIn, spotifyTrimOut, (spotifySeek.max ? Number(spotifySeek.max) / 1000 : NaN), spotifySeek, spotifyTrimLabel, spotifyTrimResetBtn); }
+
+  // Snap a media element back to its trim-in point if the current position is
+  // outside the trimmed window, before starting playback. Shared by every
+  // control that can start this element playing (the clip's own small play
+  // button and the master transport button), so trimming behaves the same
+  // regardless of which one was used.
+  function snapIntoTrim(el, trimIn, trimOut){
+    var outPoint = (trimOut != null) ? trimOut : el.duration;
+    if (el.currentTime < trimIn - 0.05 || (isFinite(outPoint) && el.currentTime >= outPoint - 0.05)){
+      el.currentTime = trimIn;
+    }
+  }
+
+  // ---------- Screen size: auto-detected from the dropped clip ----------
+  function applyDetectedSize(w, h){
+    if (!w || !h) return;
+    stage.style.aspectRatio = w + ' / ' + h;
+    if (w >= h){
+      stage.style.width = 'min(100%, 820px)';
+      stage.style.height = '';
+    } else {
+      stage.style.height = 'min(70vh, 640px)';
+      stage.style.width = 'auto';
+    }
+  }
+
+  function resetDetectedSize(){
+    stage.style.aspectRatio = '';
+    stage.style.width = '';
+    stage.style.height = '';
+  }
+
+  // ---------- Video drop / browse ----------
+  var videoReady = false; // true once loadedmetadata has fired for the current clip — the
+                           // mixer timeline needs a known duration before it can position tracks
+  function loadVideoFile(file){
+    if (!file || file.type.indexOf('video') !== 0) return;
+    var url = URL.createObjectURL(file);
+    video.src = url;
+    video.load();
+    stageFileName.textContent = file.name;
+    dropzone.hidden = true;
+    stageMeta.hidden = false;
+    videoTrimIn = 0; videoTrimOut = null; // new clip — any previous trim no longer applies
+    updateClipTrimUI();
+    videoReady = false;
+    renderMixer();
+    if (isPlaying) video.play().catch(function(){});
+    refreshExportState();
+    refreshSaveButtonState();
+  }
+
+  video.addEventListener('loadedmetadata', function(){
+    applyDetectedSize(video.videoWidth, video.videoHeight);
+    clipSeek.max = video.duration || 0;
+    clipSeek.value = 0;
+    clipTimeDuration.textContent = formatTime(video.duration);
+    clipTimeCurrent.textContent = '0:00';
+    updateClipTrimUI(); // refresh the trim highlight now duration is known
+    videoReady = true;
+    clampAudioTracksToVideo();
+    renderMixer();
+  });
+
+  var isSeekingClip = false;
+  video.addEventListener('timeupdate', function(){
+    if (!isSeekingClip) clipSeek.value = video.currentTime;
+    clipTimeCurrent.textContent = formatTime(video.currentTime);
+    if (!video.paused){
+      var outPoint = (videoTrimOut != null) ? videoTrimOut : video.duration;
+      if (isFinite(outPoint) && video.currentTime >= outPoint - 0.08){
+        video.currentTime = videoTrimIn;
+      }
+    }
+  });
+  video.addEventListener('play', function(){ clipPlayIcon.innerHTML = ICON_PAUSE; });
+  video.addEventListener('pause', function(){ clipPlayIcon.innerHTML = ICON_PLAY; });
+
+  clipPlayBtn.addEventListener('click', function(){
+    if (!video.src) return;
+    if (video.paused){
+      snapIntoTrim(video, videoTrimIn, videoTrimOut);
+      video.play().catch(function(){});
+    } else {
+      video.pause();
+    }
+  });
+  clipSeek.addEventListener('pointerdown', function(){ isSeekingClip = true; });
+  clipSeek.addEventListener('input', function(){ clipTimeCurrent.textContent = formatTime(Number(clipSeek.value)); });
+  clipSeek.addEventListener('change', function(){
+    video.currentTime = Number(clipSeek.value);
+    isSeekingClip = false;
+  });
+
+  clipSetInBtn.addEventListener('click', function(){
+    if (!video.src) return;
+    videoTrimIn = video.currentTime;
+    if (videoTrimOut != null && videoTrimOut <= videoTrimIn + 0.1) videoTrimOut = null;
+    updateClipTrimUI();
+  });
+  clipSetOutBtn.addEventListener('click', function(){
+    if (!video.src) return;
+    if (video.currentTime <= videoTrimIn + 0.1) return;
+    videoTrimOut = video.currentTime;
+    updateClipTrimUI();
+  });
+  clipTrimResetBtn.addEventListener('click', function(){
+    videoTrimIn = 0; videoTrimOut = null;
+    updateClipTrimUI();
+  });
+
+  dropzone.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(e){ loadVideoFile(e.target.files[0]); });
+
+  ['dragenter','dragover'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.remove('drag'); });
+  });
+  dropzone.addEventListener('drop', function(e){
+    e.preventDefault();
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    loadVideoFile(file);
+  });
+
+  quickOpenBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var url = btn.getAttribute('data-url');
+      if (url) window.open(url, '_blank', 'noopener');
+    });
+  });
+
+  changeClipBtn.addEventListener('click', function(){
+    dropzone.hidden = false;
+    stageMeta.hidden = true;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    resetDetectedSize();
+    clipSeek.value = 0;
+    clipSeek.max = 0;
+    clipTimeCurrent.textContent = '0:00';
+    clipTimeDuration.textContent = '0:00';
+    clipPlayIcon.innerHTML = ICON_PLAY;
+    videoTrimIn = 0; videoTrimOut = null;
+    updateClipTrimUI();
+    videoReady = false;
+    if (isRecording) stopRecording();
+    renderMixer();
+    refreshExportState();
+    refreshSaveButtonState();
+  });
+
+  muteClip.addEventListener('change', function(){ video.muted = muteClip.checked; });
+
+  // ---------- Tabs ----------
+  var currentAudioTab = 'spotify';
+  tabButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabButtons.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var tab = btn.getAttribute('data-tab');
+      panelSpotify.hidden = tab !== 'spotify';
+      panelAudio.hidden = tab !== 'audio';
+      currentAudioTab = tab;
+      if (tab !== 'audio' && isRecording) stopRecording();
+      refreshExportState();
+      refreshSaveButtonState();
+    });
+  });
+
+  // ---------- Spotify: embed fallback (no login) ----------
+  var spotifyController = null;
+  var spotifyEmbedQueue = null;
+  var spotifyMode = 'none'; // 'none' | 'embed' | 'sdk'
+
+  window.onSpotifyIframeApiReady = function(IFrameAPI){
+    window.__spotifyIFrameAPI = IFrameAPI;
+    if (spotifyEmbedQueue){
+      createSpotifyEmbed(IFrameAPI, spotifyEmbedQueue);
+      spotifyEmbedQueue = null;
+    }
+  };
+
+  function parseSpotifyUri(raw){
+    raw = (raw || '').trim();
+    var m = raw.match(/open\.spotify\.com\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/);
+    if (m) return 'spotify:' + m[1] + ':' + m[2];
+    m = raw.match(/spotify:(track|album|playlist|episode|show):([a-zA-Z0-9]+)/);
+    if (m) return 'spotify:' + m[1] + ':' + m[2];
+    return null;
+  }
+
+  function createSpotifyEmbed(IFrameAPI, uri){
+    spotifyNowPlaying.hidden = true;
+    stopSpotifyProgressPolling();
+    resetSpotifyProgressUI();
+    spotifyEmbedHost.innerHTML = '';
+    var el = document.createElement('div');
+    spotifyEmbedHost.appendChild(el);
+    IFrameAPI.createController(el, { uri: uri, width: '100%', height: '152' }, function(controller){
+      spotifyController = controller;
+      spotifyMode = 'embed';
+      if (isPlaying){
+        controller.addListener('ready', function(){ controller.resume(); });
+      }
+    });
+  }
+
+  function loadSpotifyEmbed(uri){
+    if (window.__spotifyIFrameAPI){
+      createSpotifyEmbed(window.__spotifyIFrameAPI, uri);
+    } else {
+      spotifyEmbedQueue = uri;
+    }
+  }
+
+  // ---------- Spotify: login (PKCE), search and full playback (SDK) ----------
+  var accessToken = null, refreshToken = null, tokenExpiresAt = 0;
+  var player = null, deviceId = null;
+  var TOKEN_KEY = 'pairingRoom.spotifyTokens';
+
+  function showConfigBanner(){ spotifyConfigBanner.hidden = false; spotifyLoginBtn.disabled = true; }
+  function showErrorBanner(msg){ spotifyErrorBanner.textContent = msg; spotifyErrorBanner.hidden = false; }
+  function clearErrorBanner(){ spotifyErrorBanner.hidden = true; }
+
+  function randomString(len){
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var out = '';
+    var vals = crypto.getRandomValues(new Uint8Array(len));
+    for (var i = 0; i < len; i++) out += chars[vals[i] % chars.length];
+    return out;
+  }
+  function base64url(buffer){
+    var bytes = new Uint8Array(buffer), str = '';
+    for (var i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function codeChallengeFrom(verifier){
+    var data = new TextEncoder().encode(verifier);
+    return crypto.subtle.digest('SHA-256', data).then(base64url);
+  }
+
+  function saveTokens(data){
+    accessToken = data.access_token;
+    if (data.refresh_token) refreshToken = data.refresh_token;
+    tokenExpiresAt = Date.now() + (data.expires_in * 1000);
+    try {
+      localStorage.setItem(TOKEN_KEY, JSON.stringify({ accessToken: accessToken, refreshToken: refreshToken, tokenExpiresAt: tokenExpiresAt }));
+    } catch(e){}
+  }
+  function loadStoredTokens(){
+    try {
+      var raw = localStorage.getItem(TOKEN_KEY);
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      accessToken = data.accessToken; refreshToken = data.refreshToken; tokenExpiresAt = data.tokenExpiresAt;
+      return !!refreshToken;
+    } catch(e){ return false; }
+  }
+  function clearTokens(){
+    accessToken = null; refreshToken = null; tokenExpiresAt = 0;
+    try { localStorage.removeItem(TOKEN_KEY); } catch(e){}
+  }
+
+  function startLogin(){
+    if (!SPOTIFY_CONFIGURED) return;
+    var verifier = randomString(64);
+    // localStorage rather than sessionStorage: some browsers/extensions clear
+    // sessionStorage during the round trip to Spotify's login page and back,
+    // which loses this one-time secret and makes Spotify reject the login
+    // with "code_verifier was invalid". localStorage survives that trip.
+    try { localStorage.setItem('pairingRoom.verifier', verifier); } catch(e){}
+    codeChallengeFrom(verifier).then(function(challenge){
+      var params = new URLSearchParams({
+        client_id: SPOTIFY_CLIENT_ID,
+        response_type: 'code',
+        redirect_uri: SPOTIFY_REDIRECT_URI,
+        scope: SPOTIFY_SCOPES,
+        code_challenge_method: 'S256',
+        code_challenge: challenge,
+        show_dialog: 'true'
+      });
+      window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+    });
+  }
+
+  function exchangeCodeForToken(code){
+    var verifier = localStorage.getItem('pairingRoom.verifier') || '';
+    try { localStorage.removeItem('pairingRoom.verifier'); } catch(e){}
+    var body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: SPOTIFY_REDIRECT_URI,
+      client_id: SPOTIFY_CLIENT_ID,
+      code_verifier: verifier
+    });
+    return fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    }).then(function(res){ return res.json(); });
+  }
+
+  function refreshAccessToken(){
+    if (!refreshToken) return Promise.reject(new Error('no refresh token'));
+    var body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: SPOTIFY_CLIENT_ID
+    });
+    return fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    }).then(function(res){ return res.json(); }).then(function(data){
+      if (!data.access_token) throw new Error('refresh failed');
+      saveTokens(data);
+      return accessToken;
+    });
+  }
+
+  function getValidToken(){
+    if (accessToken && Date.now() < tokenExpiresAt - 60000) return Promise.resolve(accessToken);
+    return refreshAccessToken();
+  }
+
+  function spotifyApi(path, options){
+    options = options || {};
+    return getValidToken().then(function(token){
+      options.headers = Object.assign({ Authorization: 'Bearer ' + token }, options.headers || {});
+      return fetch('https://api.spotify.com/v1' + path, options);
+    });
+  }
+
+  function onLoginSuccess(){
+    spotifyLoginBtn.hidden = true;
+    spotifyAccountRow.hidden = false;
+    spotifySearchForm.hidden = false;
+    spotifyHint.textContent = 'Connecting to Spotify…';
+    spotifyApi('/me').then(function(res){ return res.json(); }).then(function(me){
+      spotifyUserName.textContent = me.display_name || me.id || 'Connected';
+    });
+    initPlayer();
+  }
+
+  function initPlayer(){
+    if (!window.Spotify){ window.__initPlayerOnReady = true; return; }
+    if (player) return;
+    player = new Spotify.Player({
+      name: 'CreativeRace Pairing Room',
+      getOAuthToken: function(cb){ getValidToken().then(cb); },
+      volume: 0.8
+    });
+    player.addListener('ready', function(e){
+      deviceId = e.device_id;
+      spotifyHint.textContent = 'Logging in unlocks full-track playback and search — needs Spotify Premium.';
+    });
+    player.addListener('not_ready', function(){ deviceId = null; });
+    player.addListener('authentication_error', function(){ clearTokens(); renderLoggedOutUI(); });
+    player.addListener('account_error', function(){
+      showErrorBanner('This Spotify account doesn\'t have Premium, so full in-page playback isn\'t available. Use "paste a link" below for a preview instead.');
+    });
+    player.addListener('player_state_changed', function(state){
+      if (!state) return;
+      setPlayingUI(!state.paused);
+      updateSpotifyProgressUI(state.position, state.duration);
+      if (!state.paused) startSpotifyProgressPolling(); else stopSpotifyProgressPolling();
+    });
+    player.connect();
+  }
+
+  // ---------- Spotify: progress slider (SDK mode only) ----------
+  var isSeekingSpotify = false;
+  var spotifyProgressTimer = null;
+
+  function updateSpotifyProgressUI(positionMs, durationMs){
+    if (durationMs) spotifySeek.max = durationMs;
+    if (!isSeekingSpotify) spotifySeek.value = positionMs || 0;
+    spotifyTimeCurrent.textContent = formatTime((positionMs || 0) / 1000);
+    spotifyTimeDuration.textContent = formatTime((durationMs || 0) / 1000);
+    updateSpotifyTrimUI();
+  }
+
+  function resetSpotifyProgressUI(){
+    spotifySeek.value = 0;
+    spotifyTimeCurrent.textContent = '0:00';
+    spotifyTimeDuration.textContent = '0:00';
+  }
+
+  function startSpotifyProgressPolling(){
+    stopSpotifyProgressPolling();
+    spotifyProgressTimer = setInterval(function(){
+      if (!player || isSeekingSpotify) return;
+      player.getCurrentState().then(function(state){
+        if (!state) return;
+        updateSpotifyProgressUI(state.position, state.duration);
+        // Preview-only looping within the trimmed window (never affects export
+        // — Spotify audio still can't be captured to a file).
+        var outMs = (spotifyTrimOut != null) ? spotifyTrimOut * 1000 : state.duration;
+        if (isFinite(outMs) && state.position >= outMs - 150 && !state.paused){
+          player.seek(spotifyTrimIn * 1000).catch(function(){});
+        }
+      });
+    }, 500);
+  }
+
+  function stopSpotifyProgressPolling(){
+    if (spotifyProgressTimer){ clearInterval(spotifyProgressTimer); spotifyProgressTimer = null; }
+  }
+
+  spotifySeek.addEventListener('pointerdown', function(){ isSeekingSpotify = true; });
+  spotifySeek.addEventListener('input', function(){
+    spotifyTimeCurrent.textContent = formatTime(Number(spotifySeek.value) / 1000);
+  });
+  spotifySeek.addEventListener('change', function(){
+    var ms = Number(spotifySeek.value);
+    if (player) player.seek(ms).catch(function(){});
+    isSeekingSpotify = false;
+  });
+
+  spotifySetInBtn.addEventListener('click', function(){
+    var sec = Number(spotifySeek.value) / 1000;
+    spotifyTrimIn = sec;
+    if (spotifyTrimOut != null && spotifyTrimOut <= spotifyTrimIn + 0.1) spotifyTrimOut = null;
+    updateSpotifyTrimUI();
+  });
+  spotifySetOutBtn.addEventListener('click', function(){
+    var sec = Number(spotifySeek.value) / 1000;
+    if (sec <= spotifyTrimIn + 0.1) return;
+    spotifyTrimOut = sec;
+    updateSpotifyTrimUI();
+  });
+  spotifyTrimResetBtn.addEventListener('click', function(){
+    spotifyTrimIn = 0; spotifyTrimOut = null;
+    updateSpotifyTrimUI();
+  });
+
+  window.onSpotifyWebPlaybackSDKReady = function(){
+    if (window.__initPlayerOnReady) initPlayer();
+  };
+
+  function playUriViaSdk(uri, label){
+    if (!deviceId){
+      showErrorBanner('Still connecting to Spotify — try again in a second.');
+      return;
+    }
+    clearErrorBanner();
+    var body = uri.indexOf(':track:') !== -1 ? { uris: [uri] } : { context_uri: uri };
+    spotifyApi('/me/player/play?device_id=' + deviceId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if (res.status === 403 || res.status === 404){
+        showErrorBanner('Full playback needs Spotify Premium on this account — showing a preview instead.');
+        loadSpotifyEmbed(uri);
+        return;
+      }
+      spotifyMode = 'sdk';
+      spotifyEmbedHost.innerHTML = '';
+      spotifyNowPlaying.hidden = false;
+      spotifyNowPlayingText.textContent = label || uri;
+      setPlayingUI(true);
+    }).catch(function(){
+      loadSpotifyEmbed(uri);
+    });
+  }
+
+  var currentSpotifyUri = null;
+  var currentSpotifyLabel = null;
+
+  function loadSpotifyThing(uri, label){
+    currentSpotifyUri = uri;
+    currentSpotifyLabel = label || uri;
+    spotifyTrimIn = 0; spotifyTrimOut = null; // new track — any previous trim no longer applies
+    updateSpotifyTrimUI();
+    if (accessToken && deviceId){
+      playUriViaSdk(uri, label);
+    } else {
+      loadSpotifyEmbed(uri);
+    }
+    refreshSaveButtonState();
+  }
+
+  function renderLoggedOutUI(){
+    spotifyLoginBtn.hidden = false;
+    spotifyAccountRow.hidden = true;
+    spotifySearchForm.hidden = true;
+    spotifyResults.innerHTML = '';
+    spotifyNowPlaying.hidden = true;
+    spotifyMode = 'none';
+    stopSpotifyProgressPolling();
+    resetSpotifyProgressUI();
+  }
+
+  function searchTracks(q){
+    return spotifyApi('/search?type=track&limit=8&q=' + encodeURIComponent(q))
+      .then(function(res){ return res.json(); })
+      .then(function(data){ return (data.tracks && data.tracks.items) || []; });
+  }
+
+  function renderResults(tracks){
+    spotifyResults.innerHTML = '';
+    tracks.forEach(function(t){
+      var row = document.createElement('div');
+      row.className = 'result-row';
+      var artists = (t.artists || []).map(function(a){ return a.name; }).join(', ');
+      row.innerHTML =
+        '<div class="meta"><div class="t-name"></div><div class="t-artist"></div></div>' +
+        '<span class="play-pill">Load</span>';
+      row.querySelector('.t-name').textContent = t.name;
+      row.querySelector('.t-artist').textContent = artists;
+      row.addEventListener('click', function(){
+        spotifyResults.innerHTML = '';
+        loadSpotifyThing(t.uri, t.name + ' — ' + artists);
+      });
+      spotifyResults.appendChild(row);
+    });
+  }
+
+  spotifyLoginBtn.addEventListener('click', startLogin);
+  spotifyLogoutBtn.addEventListener('click', function(){
+    clearTokens();
+    if (player){ player.disconnect(); player = null; }
+    deviceId = null;
+    renderLoggedOutUI();
+  });
+
+  spotifySearchForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var q = spotifySearchInput.value.trim();
+    if (!q) return;
+    searchTracks(q).then(renderResults);
+  });
+
+  spotifyForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var uri = parseSpotifyUri(spotifyLink.value);
+    if (!uri){
+      spotifyLink.focus();
+      return;
+    }
+    loadSpotifyThing(uri);
+  });
+
+  if (!SPOTIFY_CONFIGURED){
+    showConfigBanner();
+  } else {
+    (function handleRedirectOrRestore(){
+      var params = new URLSearchParams(window.location.search);
+      var code = params.get('code');
+      if (code){
+        exchangeCodeForToken(code).then(function(data){
+          // Always clear ?code=... from the address bar, whether this succeeds
+          // or fails — otherwise a failed attempt leaves a dead code stuck in
+          // the URL, and every later reload keeps retrying (and failing on)
+          // that same expired code instead of letting you log in fresh.
+          window.history.replaceState({}, document.title, SPOTIFY_REDIRECT_URI);
+          if (data.access_token){
+            saveTokens(data);
+            onLoginSuccess();
+          } else {
+            showErrorBanner('Spotify login did not complete. Please try again.' + (data.error_description ? ' (' + data.error_description + ')' : ''));
+          }
+        });
+      } else if (loadStoredTokens()){
+        onLoginSuccess();
+      }
+    })();
+  }
+
+  // ---------- Your audio: multi-track mixer ----------
+  // Up to three audio tracks, each positioned on the clip's own timeline
+  // (clipStart = where it starts playing against the video) with its own
+  // in/out trim within the source file (audioIn/audioOut), a volume level,
+  // and an optional crossfade. Tracks that overlap in time layer; tracks
+  // that don't overlap simply play one after another. Crossfade length is
+  // never a separate number the user sets — it's derived from how much a
+  // track has been dragged to overlap with its neighbour, both for the
+  // live preview envelope and for the ffmpeg export filter below.
+  var audioTracks = [];
+  var MAX_TRACKS = 3;
+  var MIN_TRACK_DUR = 0.2;
+  var trackIdSeq = 1;
+
+  function timelineDuration(){
+    var d = (videoReady && isFinite(video.duration) && video.duration > 0) ? video.duration : 0;
+    audioTracks.forEach(function(t){ d = Math.max(d, t.clipStart + (t.audioOut - t.audioIn)); });
+    return Math.max(d, 1);
+  }
+
+  // Recompute each track's fade-in/out length from how much it overlaps its
+  // neighbours — only tracks with crossfade enabled get a nonzero fade.
+  function recomputeFades(){
+    audioTracks.forEach(function(t){
+      var dur = t.audioOut - t.audioIn;
+      var tStart = t.clipStart, tEnd = t.clipStart + dur;
+      var fadeIn = 0, fadeOut = 0;
+      if (t.crossfade){
+        audioTracks.forEach(function(o){
+          if (o === t) return;
+          var oDur = o.audioOut - o.audioIn;
+          var oStart = o.clipStart, oEnd = o.clipStart + oDur;
+          if (oStart < tStart && oEnd > tStart){
+            fadeIn = Math.max(fadeIn, Math.min(oEnd, tEnd) - tStart);
+          }
+          if (oStart > tStart && oStart < tEnd){
+            fadeOut = Math.max(fadeOut, tEnd - oStart);
+          }
+        });
+        fadeIn = Math.max(0, Math.min(fadeIn, dur - 0.05));
+        fadeOut = Math.max(0, Math.min(fadeOut, dur - 0.05));
+        if (fadeIn + fadeOut > dur){
+          var scale = dur / (fadeIn + fadeOut);
+          fadeIn *= scale; fadeOut *= scale;
+        }
+      }
+      t._fadeIn = fadeIn;
+      t._fadeOut = fadeOut;
+    });
+  }
+
+  function clampAudioTracksToVideo(){
+    if (!videoReady || !isFinite(video.duration)) return;
+    audioTracks.forEach(function(t){
+      var dur = t.audioOut - t.audioIn;
+      var maxStart = Math.max(0, video.duration - dur);
+      t.clipStart = Math.min(t.clipStart, maxStart);
+    });
+    recomputeFades();
+  }
+
+  function addAudioTrackFile(file, onAdded, onError){
+    if (!file || file.type.indexOf('audio') !== 0){ if (onError) onError(); return; }
+    if (!videoReady){ if (onError) onError(); return; } // the mixer is hidden until a clip is loaded, but guard anyway
+    if (audioTracks.length >= MAX_TRACKS){ if (onError) onError(); return; }
+    var url = URL.createObjectURL(file);
+    var probe = new Audio();
+    probe.src = url;
+
+    function finalizeTrack(fileDur){
+      fileDur = (isFinite(fileDur) && fileDur > 0) ? fileDur : 0;
+      var vidDur = isFinite(video.duration) ? video.duration : fileDur;
+      var trackDur = Math.max(MIN_TRACK_DUR, Math.min(fileDur, vidDur) || fileDur);
+      var lastEnd = audioTracks.reduce(function(max, t){ return Math.max(max, t.clipStart + (t.audioOut - t.audioIn)); }, 0);
+      var clipStart = Math.min(lastEnd, Math.max(0, vidDur - trackDur));
+      audioTracks.push({
+        id: 'track' + (trackIdSeq++),
+        name: file.name,
+        url: url,
+        fileDuration: fileDur,
+        clipStart: clipStart,
+        audioIn: 0,
+        audioOut: trackDur,
+        volume: 1,
+        crossfade: false,
+        el: probe
+      });
+      recomputeFades();
+      renderMixer();
+      refreshExportState();
+      refreshSaveButtonState();
+      if (onAdded) onAdded();
+    }
+
+    probe.addEventListener('loadedmetadata', function(){
+      if (isFinite(probe.duration) && probe.duration > 0){
+        finalizeTrack(probe.duration);
+        return;
+      }
+      // Chromium quirk: a MediaRecorder-produced webm (what "Record voiceover"
+      // creates) has no duration in its container header, so right after
+      // loadedmetadata the browser reports duration as Infinity. Seeking past
+      // the end forces it to scan the file and work out the real duration —
+      // we then rewind to the start before the track is used for anything.
+      var settled = false;
+      function settle(){
+        if (settled) return;
+        settled = true;
+        probe.removeEventListener('durationchange', onDurationChange);
+        probe.removeEventListener('seeked', settle);
+        probe.removeEventListener('timeupdate', settle);
+        var fixedDur = isFinite(probe.duration) ? probe.duration : 0;
+        probe.currentTime = 0;
+        finalizeTrack(fixedDur);
+      }
+      function onDurationChange(){
+        if (isFinite(probe.duration) && probe.duration > 0) settle();
+      }
+      probe.addEventListener('durationchange', onDurationChange);
+      probe.addEventListener('seeked', settle, { once: true });
+      probe.addEventListener('timeupdate', settle, { once: true });
+      setTimeout(settle, 2000); // safety net if none of the above ever fire
+      probe.currentTime = 1e101;
+    }, { once: true });
+    probe.addEventListener('error', function(){
+      URL.revokeObjectURL(url);
+      if (onError) onError();
+    }, { once: true });
+  }
+
+  addTrackBtn.addEventListener('click', function(){ audioTrackInput.click(); });
+  audioTrackInput.addEventListener('change', function(e){
+    addAudioTrackFile(e.target.files[0]);
+    audioTrackInput.value = '';
+  });
+
+  // ---------- Record a voiceover straight from the mic ----------
+  // Records with MediaRecorder, then hands the result to addAudioTrackFile()
+  // just like an uploaded file — it becomes an ordinary track on the mixer,
+  // positioned, trimmed, volumed and crossfaded the same way as any other.
+  var mediaRecorder = null;
+  var recordedChunks = [];
+  var activeRecordStream = null;
+  var recordTimerInterval = null;
+  var recordStartTime = 0;
+  var isRecording = false;
+  var voiceoverCount = 0;
+
+  function showVoiceoverError(msg){ voiceoverErrorBanner.textContent = msg; voiceoverErrorBanner.hidden = false; }
+  function clearVoiceoverError(){ voiceoverErrorBanner.hidden = true; }
+
+  function refreshMixerAddButtons(){
+    var atCap = audioTracks.length >= MAX_TRACKS;
+    addTrackBtn.disabled = atCap;
+    recordVoiceoverBtn.disabled = atCap && !isRecording;
+    generateVoiceoverBtn.disabled = atCap;
+    trackLimitNote.hidden = !atCap;
+    if (atCap) voPanel.hidden = true;
+  }
+
+  function updateRecordLabel(){
+    recordBtnLabel.textContent = 'Stop recording — ' + formatTime((Date.now() - recordStartTime) / 1000);
+  }
+
+  function startRecording(){
+    if (!videoReady || audioTracks.length >= MAX_TRACKS) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+      showVoiceoverError("This browser can't record audio here — try Chrome or Edge, or add a pre-recorded file instead.");
+      return;
+    }
+    clearVoiceoverError();
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+      activeRecordStream = stream;
+      recordedChunks = [];
+      var mimeType = ['audio/webm', 'audio/ogg', 'audio/mp4'].filter(function(t){
+        return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t);
+      })[0];
+      mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+      mediaRecorder.addEventListener('dataavailable', function(e){
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      });
+      mediaRecorder.addEventListener('stop', function(){
+        stream.getTracks().forEach(function(t){ t.stop(); });
+        activeRecordStream = null;
+        var blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        recordedChunks = [];
+        if (blob.size > 0){
+          voiceoverCount++;
+          var ext = blob.type.indexOf('ogg') !== -1 ? 'ogg' : (blob.type.indexOf('mp4') !== -1 ? 'm4a' : 'webm');
+          addAudioTrackFile(new File([blob], 'Voiceover ' + voiceoverCount + '.' + ext, { type: blob.type }));
+        }
+      });
+      mediaRecorder.start();
+      isRecording = true;
+      recordStartTime = Date.now();
+      recordVoiceoverBtn.classList.add('recording');
+      addTrackBtn.disabled = true;
+      generateVoiceoverBtn.disabled = true;
+      updateRecordLabel();
+      recordTimerInterval = setInterval(updateRecordLabel, 250);
+    }).catch(function(){
+      showVoiceoverError('Microphone access was denied or unavailable. Allow microphone access for this page, or add a pre-recorded file instead.');
+    });
+  }
+
+  function stopRecording(){
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    isRecording = false;
+    if (recordTimerInterval) clearInterval(recordTimerInterval);
+    recordTimerInterval = null;
+    recordVoiceoverBtn.classList.remove('recording');
+    recordBtnLabel.textContent = 'Record voiceover';
+    refreshMixerAddButtons();
+  }
+
+  recordVoiceoverBtn.addEventListener('click', function(){
+    if (isRecording) stopRecording(); else startRecording();
+  });
+
+  // ---------- Generate an AI voiceover (ElevenLabs via the Cloudflare Worker proxy) ----------
+  // Never calls ElevenLabs directly — only VO_WORKER_URL, which holds the real
+  // API key as a server-side secret. This page only ever sends the shared
+  // app token (a lightweight abuse deterrent, not a true secret) plus the
+  // script text, chosen voice id and style amount.
+  var voVoicesCache = null; // null = not yet fetched; [] = fetched but empty/failed
+  var voGeneratedCount = 0;
+
+  function setVoStatus(msg, isError){
+    if (!msg){ voStatus.hidden = true; voStatus.textContent = ''; voStatus.classList.remove('vo-error'); return; }
+    voStatus.hidden = false;
+    voStatus.textContent = msg;
+    voStatus.classList.toggle('vo-error', !!isError);
+  }
+
+  function fetchVoices(){
+    if (voVoicesCache) return; // already loaded (or already failed) this session
+    voVoiceSelect.disabled = true;
+    fetch(VO_WORKER_URL + '/voices', { headers: { 'X-App-Token': VO_APP_TOKEN } })
+      .then(function(res){
+        return res.json().then(function(data){ return { ok: res.ok, data: data }; });
+      })
+      .then(function(result){
+        if (!result.ok || !result.data || !result.data.voices || !result.data.voices.length){
+          voVoicesCache = [];
+          voVoiceSelect.innerHTML = '<option value="">Couldn\'t load voices</option>';
+          voVoiceSelect.disabled = true;
+          setVoStatus((result.data && result.data.error) || "Couldn't load the voice list — try again shortly.", true);
+          return;
+        }
+        voVoicesCache = result.data.voices;
+        voVoiceSelect.innerHTML = voVoicesCache.map(function(v){
+          return '<option value="' + v.id + '">' + v.name + '</option>';
+        }).join('');
+        voVoiceSelect.disabled = false;
+      })
+      .catch(function(){
+        voVoicesCache = [];
+        voVoiceSelect.innerHTML = '<option value="">Couldn\'t load voices</option>';
+        voVoiceSelect.disabled = true;
+        setVoStatus("Couldn't reach the voiceover service — check your connection and try again.", true);
+      });
+  }
+
+  function generateVoiceover(){
+    var text = voText.value.trim().slice(0, VO_MAX_CHARS);
+    if (!text){ setVoStatus('Type a script for the voiceover first.', true); return; }
+    var voiceId = voVoiceSelect.value;
+    if (!voiceId){ setVoStatus('Pick a voice first.', true); return; }
+    if (audioTracks.length >= MAX_TRACKS){ setVoStatus('Remove a track first — up to 3 are allowed.', true); return; }
+
+    var voiceName = (voVoicesCache || []).reduce(function(found, v){ return v.id === voiceId ? v.name : found; }, 'Voiceover');
+    var style = Math.max(0, Math.min(100, Number(voStyleRange.value) || 0)) / 100;
+
+    voGenerateBtn.disabled = true;
+    setVoStatus('Generating…', false);
+
+    fetch(VO_WORKER_URL + '/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-App-Token': VO_APP_TOKEN },
+      body: JSON.stringify({ text: text, voiceId: voiceId, style: style })
+    }).then(function(res){
+      if (!res.ok){
+        return res.json().catch(function(){ return {}; }).then(function(data){
+          throw new Error((data && data.error) || ('Generation failed (' + res.status + ')'));
+        });
+      }
+      return res.blob();
+    }).then(function(blob){
+      voGeneratedCount++;
+      var file = new File([blob], 'AI Voiceover ' + voGeneratedCount + ' - ' + voiceName + '.mp3', { type: blob.type || 'audio/mpeg' });
+      addAudioTrackFile(file, function onAdded(){
+        setVoStatus('Added to the mixer.', false);
+        voText.value = '';
+        voCharCount.textContent = '0';
+        voGenerateBtn.disabled = (audioTracks.length >= MAX_TRACKS);
+      }, function onError(){
+        setVoStatus("Generated the audio, but couldn't add it as a track — try again.", true);
+        voGenerateBtn.disabled = (audioTracks.length >= MAX_TRACKS);
+      });
+    }).catch(function(err){
+      setVoStatus(err && err.message ? err.message : 'Something went wrong generating that voiceover.', true);
+      voGenerateBtn.disabled = false;
+    });
+  }
+
+  generateVoiceoverBtn.addEventListener('click', function(){
+    voPanel.hidden = !voPanel.hidden;
+    if (!voPanel.hidden) fetchVoices();
+  });
+  voText.addEventListener('input', function(){
+    voCharCount.textContent = String(voText.value.length);
+  });
+  voGenerateBtn.addEventListener('click', generateVoiceover);
+
+  function removeAudioTrack(track){
+    if (track.el) track.el.pause();
+    audioTracks = audioTracks.filter(function(t){ return t !== track; });
+    recomputeFades();
+    renderMixer();
+    refreshExportState();
+    refreshSaveButtonState();
+  }
+
+  function pxPerSecond(laneEl, duration){
+    var w = laneEl.getBoundingClientRect().width;
+    return duration > 0 ? w / duration : 0;
+  }
+
+  function updateBlockVisual(blockEl, track, duration){
+    var dur = track.audioOut - track.audioIn;
+    var leftPct = duration > 0 ? (track.clipStart / duration) * 100 : 0;
+    var widthPct = duration > 0 ? (dur / duration) * 100 : 0;
+    blockEl.style.left = leftPct + '%';
+    blockEl.style.width = Math.max(widthPct, 2) + '%';
+    var label = blockEl.querySelector('.mixer-block-label');
+    if (label) label.textContent = formatTime(track.clipStart) + '–' + formatTime(track.clipStart + dur);
+  }
+
+  function attachBlockDrag(blockEl, laneEl, track){
+    blockEl.addEventListener('pointerdown', function(e){
+      if (e.target.classList.contains('mixer-handle')) return;
+      e.preventDefault();
+      var startX = e.clientX;
+      var duration = timelineDuration();
+      var pps = pxPerSecond(laneEl, duration) || 1;
+      var startClipStart = track.clipStart;
+      blockEl.setPointerCapture(e.pointerId);
+      function onMove(ev){
+        var dx = (ev.clientX - startX) / pps;
+        var winDur = track.audioOut - track.audioIn;
+        var maxStart = Math.max(0, duration - winDur);
+        track.clipStart = Math.max(0, Math.min(maxStart, startClipStart + dx));
+        updateBlockVisual(blockEl, track, duration);
+      }
+      function onUp(){
+        blockEl.removeEventListener('pointermove', onMove);
+        blockEl.removeEventListener('pointerup', onUp);
+        recomputeFades();
+        renderMixer();
+        refreshSaveButtonState();
+      }
+      blockEl.addEventListener('pointermove', onMove);
+      blockEl.addEventListener('pointerup', onUp);
+    });
+  }
+
+  function attachHandleDrag(handleEl, laneEl, track, side){
+    handleEl.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      var startX = e.clientX;
+      var duration = timelineDuration();
+      var pps = pxPerSecond(laneEl, duration) || 1;
+      var startIn = track.audioIn, startOut = track.audioOut, startClipStart = track.clipStart;
+      handleEl.setPointerCapture(e.pointerId);
+      function onMove(ev){
+        var dx = (ev.clientX - startX) / pps;
+        if (side === 'left'){
+          var newIn = Math.max(0, Math.min(startOut - MIN_TRACK_DUR, startIn + dx));
+          var delta = newIn - startIn;
+          track.audioIn = newIn;
+          track.clipStart = Math.max(0, startClipStart + delta);
+        } else {
+          var newOut = Math.max(startIn + MIN_TRACK_DUR, Math.min(track.fileDuration, startOut + dx));
+          track.audioOut = newOut;
+        }
+        var blockEl = laneEl.querySelector('.mixer-block');
+        if (blockEl) updateBlockVisual(blockEl, track, duration);
+      }
+      function onUp(){
+        handleEl.removeEventListener('pointermove', onMove);
+        handleEl.removeEventListener('pointerup', onUp);
+        recomputeFades();
+        renderMixer();
+        refreshSaveButtonState();
+      }
+      handleEl.addEventListener('pointermove', onMove);
+      handleEl.addEventListener('pointerup', onUp);
+    });
+  }
+
+  function renderMixer(){
+    mixerEmptyMsg.hidden = videoReady;
+    audioMixer.hidden = !videoReady;
+    if (!videoReady) return;
+
+    var duration = timelineDuration();
+    mixerRuler.innerHTML = '<span>0:00</span><span>' + formatTime(duration) + '</span>';
+
+    mixerTracks.innerHTML = '';
+    audioTracks.forEach(function(track){
+      var row = document.createElement('div');
+      row.className = 'mixer-track';
+
+      var head = document.createElement('div');
+      head.className = 'mixer-track-head';
+
+      var name = document.createElement('span');
+      name.className = 'mixer-track-name';
+      name.textContent = track.name;
+      head.appendChild(name);
+
+      var volLabel = document.createElement('label');
+      volLabel.className = 'mixer-vol';
+      var volInput = document.createElement('input');
+      volInput.type = 'range';
+      volInput.min = '0';
+      volInput.max = '100';
+      volInput.value = String(Math.round(track.volume * 100));
+      volInput.addEventListener('input', function(){ track.volume = Number(volInput.value) / 100; });
+      volLabel.appendChild(document.createTextNode('Vol '));
+      volLabel.appendChild(volInput);
+      head.appendChild(volLabel);
+
+      var fadeLabel = document.createElement('label');
+      fadeLabel.className = 'mixer-fade';
+      var fadeInput = document.createElement('input');
+      fadeInput.type = 'checkbox';
+      fadeInput.checked = track.crossfade;
+      fadeInput.addEventListener('change', function(){
+        track.crossfade = fadeInput.checked;
+        recomputeFades();
+      });
+      fadeLabel.appendChild(fadeInput);
+      fadeLabel.appendChild(document.createTextNode('Crossfade'));
+      head.appendChild(fadeLabel);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'mixer-remove';
+      removeBtn.setAttribute('aria-label', 'Remove track');
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', function(){ removeAudioTrack(track); });
+      head.appendChild(removeBtn);
+
+      row.appendChild(head);
+
+      var lane = document.createElement('div');
+      lane.className = 'mixer-track-lane';
+      var block = document.createElement('div');
+      block.className = 'mixer-block';
+      var handleLeft = document.createElement('div');
+      handleLeft.className = 'mixer-handle left';
+      var label = document.createElement('span');
+      label.className = 'mixer-block-label';
+      var handleRight = document.createElement('div');
+      handleRight.className = 'mixer-handle right';
+      block.appendChild(handleLeft);
+      block.appendChild(label);
+      block.appendChild(handleRight);
+      lane.appendChild(block);
+      row.appendChild(lane);
+
+      mixerTracks.appendChild(row);
+
+      updateBlockVisual(block, track, duration);
+      attachBlockDrag(block, lane, track);
+      attachHandleDrag(handleLeft, lane, track, 'left');
+      attachHandleDrag(handleRight, lane, track, 'right');
+    });
+
+    refreshMixerAddButtons();
+  }
+
+  // ---------- Multi-track playback scheduler ----------
+  // Drives each track's own <audio> element off the video's current time
+  // while playing, starting/stopping/seeking each one based on whether the
+  // clip is inside that track's window, and applying its volume plus any
+  // crossfade envelope computed by recomputeFades().
+  var schedulerRAF = null;
+
+  function computeGain(t, time, winStart, winEnd){
+    var g = t.volume;
+    if (t._fadeIn > 0){
+      var pIn = (time - winStart) / t._fadeIn;
+      if (pIn < 1) g *= Math.max(0, pIn);
+    }
+    if (t._fadeOut > 0){
+      var pOut = (winEnd - time) / t._fadeOut;
+      if (pOut < 1) g *= Math.max(0, pOut);
+    }
+    return Math.max(0, Math.min(1, g));
+  }
+
+  function schedulerTick(){
+    if (!isPlaying){ schedulerRAF = null; return; }
+    var t = video.currentTime;
+    audioTracks.forEach(function(track){
+      var dur = track.audioOut - track.audioIn;
+      var winStart = track.clipStart, winEnd = track.clipStart + dur;
+      if (t >= winStart - 0.03 && t < winEnd){
+        var fileTime = Math.max(track.audioIn, Math.min(track.audioOut, track.audioIn + (t - winStart)));
+        if (track.el.paused){
+          track.el.currentTime = fileTime;
+          track.el.play().catch(function(){});
+        } else if (Math.abs(track.el.currentTime - fileTime) > 0.3){
+          track.el.currentTime = fileTime;
+        }
+        track.el.volume = computeGain(track, t, winStart, winEnd);
+      } else if (!track.el.paused){
+        track.el.pause();
+      }
+    });
+    schedulerRAF = requestAnimationFrame(schedulerTick);
+  }
+
+  function startMixerScheduler(){
+    if (!audioTracks.length || !videoReady || schedulerRAF) return;
+    schedulerTick();
+  }
+
+  function stopMixerScheduler(){
+    if (schedulerRAF) cancelAnimationFrame(schedulerRAF);
+    schedulerRAF = null;
+    audioTracks.forEach(function(t){ if (t.el) t.el.pause(); });
+  }
+
+  renderMixer();
+
+  // ---------- Export MP4 (clip + your own audio file, baked together) ----------
+  // Runs entirely in the browser via ffmpeg.wasm — no upload, no server.
+  // Not available for Spotify: that audio is a protected stream, not a file
+  // CreativeRace has the rights to, so it can't be captured into a download.
+  var ffmpegInstance = null;
+  var ffmpegLoadingPromise = null;
+  var exportBusy = false;
+
+  function exportReady(){
+    return !!video.src && currentAudioTab === 'audio' && audioTracks.length > 0;
+  }
+
+  function refreshExportState(){
+    if (exportBusy) return;
+    var onAudioTab = currentAudioTab === 'audio';
+    exportBtn.hidden = !onAudioTab;
+    exportStatus.hidden = !onAudioTab;
+    if (!onAudioTab) return;
+    exportBtn.disabled = !exportReady();
+    if (!video.src) {
+      exportStatus.textContent = 'Drop in a motion clip to enable export.';
+    } else if (!audioTracks.length) {
+      exportStatus.textContent = 'Add at least one audio track to enable export.';
+    } else if (audioTracks.length === 1) {
+      exportStatus.textContent = 'Ready — exports the clip with this audio laid over it.';
+    } else {
+      exportStatus.textContent = 'Ready — exports the clip with all ' + audioTracks.length + ' audio tracks mixed together.';
+    }
+  }
+
+  function getFFmpeg(){
+    if (ffmpegInstance) return Promise.resolve(ffmpegInstance);
+    if (ffmpegLoadingPromise) return ffmpegLoadingPromise;
+    if (!window.FFmpegWASM || !window.FFmpegUtil) {
+      return Promise.reject(new Error('export engine did not load — check your connection and reload the page'));
+    }
+    exportStatus.textContent = 'Loading export engine (first time only, ~30MB)…';
+    var instance = new window.FFmpegWASM.FFmpeg();
+    // The small engine scripts are served from the same folder as this page
+    // (./vendor/ffmpeg/) rather than a CDN — loading them cross-origin hits a
+    // couple of real bugs in ffmpeg.js (a worker-construction security error,
+    // and a broken relative-URL fallback), and self-hosting sidesteps both so
+    // export doesn't depend on a third-party CDN being reachable at all.
+    // These must be resolved to absolute URLs: the ffmpeg.js build has a bug
+    // where a relative classWorkerURL gets resolved against a leftover
+    // build-machine path instead of this page, which breaks it. Supplying a
+    // classWorkerURL also makes ffmpeg.js run its worker as an ES module, so
+    // the core script must be the ESM build (not the UMD one) or it fails to
+    // load with "failed to import ffmpeg-core.js".
+    // The core's .wasm binary (~30MB) is the one piece still loaded from a
+    // CDN — it's a plain data fetch (not a script), so it isn't affected by
+    // those bugs, and keeping it off GitHub avoids GitHub's 25MB upload limit
+    // for files added through the web interface.
+    function absoluteUrl(path){ return new URL(path, document.baseURI).href; }
+    ffmpegLoadingPromise = instance.load({
+      coreURL: absoluteUrl('./vendor/ffmpeg/ffmpeg-core.esm.js'),
+      wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm',
+      classWorkerURL: absoluteUrl('./vendor/ffmpeg/814.ffmpeg.js')
+    }).then(function(){
+      ffmpegInstance = instance;
+      return instance;
+    }).catch(function(err){
+      ffmpegLoadingPromise = null;
+      throw err;
+    });
+    return ffmpegLoadingPromise;
+  }
+
+  function fileExt(name, fallback){
+    var m = /\.([a-z0-9]+)$/i.exec(name || '');
+    return m ? m[1].toLowerCase() : fallback;
+  }
+
+  function runExport(){
+    exportBusy = true;
+    exportBtn.disabled = true;
+    exportStatus.textContent = 'Preparing…';
+
+    var ffmpeg;
+    var trackFileNames = [];
+    getFFmpeg().then(function(f){
+      ffmpeg = f;
+      exportStatus.textContent = 'Reading files…';
+      var fetches = [fetch(video.src).then(function(r){ return r.arrayBuffer(); })];
+      audioTracks.forEach(function(t){
+        fetches.push(fetch(t.url).then(function(r){ return r.arrayBuffer(); }));
+      });
+      return Promise.all(fetches);
+    }).then(function(buffers){
+      var videoName = 'input_video.' + fileExt(stageFileName.textContent, 'mp4');
+      var writes = [ffmpeg.writeFile(videoName, new Uint8Array(buffers[0]))];
+      audioTracks.forEach(function(t, i){
+        var name = 'input_audio' + i + '.' + fileExt(t.name, 'mp3');
+        trackFileNames.push(name);
+        writes.push(ffmpeg.writeFile(name, new Uint8Array(buffers[i + 1])));
+      });
+      return Promise.all(writes).then(function(){
+        exportStatus.textContent = 'Encoding… this can take a little while for longer or larger clips.';
+        // Apply the chosen trim window (if any). The video input is seeked and
+        // cut with "-ss"/"-t"; because the video stream is copied rather than
+        // re-encoded (fast, but can't cut mid-frame), the exported start point
+        // may land on the nearest keyframe at or before the chosen time rather
+        // than that exact instant. Each audio track is always re-encoded, so
+        // its trim start is sample-accurate.
+        var vIn = videoTrimIn || 0;
+        var vOut = (videoTrimOut != null && isFinite(videoTrimOut)) ? videoTrimOut : video.duration;
+        var vDur = (isFinite(vOut) && isFinite(vIn)) ? Math.max(0.1, vOut - vIn) : null;
+
+        var args = [];
+        if (vIn > 0) args = args.concat(['-ss', vIn.toFixed(2)]);
+        args = args.concat(['-i', videoName]);
+        trackFileNames.forEach(function(name){ args = args.concat(['-i', name]); });
+        if (vDur) args = args.concat(['-t', vDur.toFixed(2)]);
+
+        if (audioTracks.length > 0){
+          // Build a proper multi-track mix: each track is trimmed to its own
+          // in/out points, timestamps reset, faded in/out where it overlaps a
+          // neighbour (recomputeFades() already derived those durations from
+          // how far the blocks were dragged into each other), shifted to its
+          // clipStart position with adelay, scaled by its volume slider, then
+          // all tracks are summed with amix. normalize=0 keeps amix from
+          // auto-attenuating the mix, so the sliders' exact levels carry
+          // through to the export instead of being overridden.
+          recomputeFades();
+          var filterParts = [];
+          var mixLabels = [];
+          audioTracks.forEach(function(t, i){
+            var inIdx = i + 1;
+            var dur = Math.max(0.1, t.audioOut - t.audioIn);
+            var label = 'a' + i;
+            var chain = '[' + inIdx + ':a]atrim=start=' + t.audioIn.toFixed(3) + ':end=' + t.audioOut.toFixed(3) + ',asetpts=PTS-STARTPTS';
+            if (t._fadeIn > 0.01) chain += ',afade=t=in:st=0:d=' + t._fadeIn.toFixed(3);
+            if (t._fadeOut > 0.01) chain += ',afade=t=out:st=' + Math.max(0, dur - t._fadeOut).toFixed(3) + ':d=' + t._fadeOut.toFixed(3);
+            chain += ',volume=' + t.volume.toFixed(3);
+            var delayMs = Math.round(t.clipStart * 1000);
+            if (delayMs > 0) chain += ',adelay=' + delayMs + '|' + delayMs;
+            chain += '[' + label + ']';
+            filterParts.push(chain);
+            mixLabels.push('[' + label + ']');
+          });
+          filterParts.push(mixLabels.join('') + 'amix=inputs=' + audioTracks.length + ':duration=longest:dropout_transition=0:normalize=0[aout]');
+          args = args.concat(['-filter_complex', filterParts.join(';')]);
+          args = args.concat(['-map', '0:v:0', '-map', '[aout]']);
+        } else {
+          args = args.concat(['-map', '0:v:0']);
+        }
+        args = args.concat(['-c:v', 'copy', '-c:a', 'aac', 'output.mp4']);
+        return ffmpeg.exec(args);
+      }).then(function(){
+        return ffmpeg.readFile('output.mp4');
+      }).then(function(data){
+        var blob = new Blob([data], { type: 'video/mp4' });
+        var url = URL.createObjectURL(blob);
+        var base = (stageFileName.textContent || 'pairing-room').replace(/\.[a-z0-9]+$/i, '');
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = base + '-paired.mp4';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 15000);
+        exportStatus.textContent = 'Done — check your downloads.';
+      });
+    }).catch(function(err){
+      console.error(err);
+      exportStatus.textContent = 'Export failed: ' + (err && err.message ? err.message : 'something went wrong.');
+    }).then(function(){
+      exportBusy = false;
+      exportBtn.disabled = !exportReady();
+    });
+  }
+
+  exportBtn.addEventListener('click', function(){
+    if (exportBtn.disabled || exportBusy) return;
+    runExport();
+  });
+
+  refreshExportState();
+
+  // ---------- Saved pairings (stay on the page for this session) ----------
+  // Keeps a shortlist of clip+audio combos you've tried, so you can flick
+  // back to a favourite without re-uploading. Lives only in this browser tab
+  // for now — closing or reloading the page clears it.
+  var savedPairings = [];
+
+  function pairingReady(){
+    if (!video.src) return false;
+    if (currentAudioTab === 'audio') return audioTracks.length > 0;
+    if (currentAudioTab === 'spotify') return !!currentSpotifyUri;
+    return false;
+  }
+
+  function refreshSaveButtonState(){
+    savePairingBtn.disabled = !pairingReady();
+  }
+
+  function renderSavedPairings(){
+    savedList.querySelectorAll('.saved-item').forEach(function(el){ el.remove(); });
+    savedEmpty.hidden = savedPairings.length > 0;
+    savedPairings.forEach(function(p){
+      var row = document.createElement('div');
+      row.className = 'saved-item';
+
+      var info = document.createElement('div');
+      info.className = 'saved-item-info';
+      var name = document.createElement('div');
+      name.className = 'saved-item-name';
+      var audioLabel = p.audioMode === 'audio'
+        ? (p.audioTracks || []).map(function(t){ return t.name; }).join(' + ') || 'Your audio'
+        : p.spotifyLabel;
+      name.textContent = p.videoName + ' + ' + audioLabel;
+      var sub = document.createElement('div');
+      sub.className = 'saved-item-sub';
+      sub.textContent = p.audioMode === 'audio'
+        ? (p.audioTracks && p.audioTracks.length > 1 ? p.audioTracks.length + ' audio tracks' : 'Your audio')
+        : 'Spotify';
+      info.appendChild(name);
+      info.appendChild(sub);
+
+      var actions = document.createElement('div');
+      actions.className = 'saved-item-actions';
+      var loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'saved-load';
+      loadBtn.textContent = 'Load';
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'saved-delete';
+      delBtn.setAttribute('aria-label', 'Delete saved pairing');
+      delBtn.textContent = '×';
+      actions.appendChild(loadBtn);
+      actions.appendChild(delBtn);
+
+      row.appendChild(info);
+      row.appendChild(actions);
+      savedList.appendChild(row);
+
+      function doLoad(){ loadSavedPairing(p); }
+      row.addEventListener('click', doLoad);
+      loadBtn.addEventListener('click', function(e){ e.stopPropagation(); doLoad(); });
+      delBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        savedPairings = savedPairings.filter(function(x){ return x.id !== p.id; });
+        renderSavedPairings();
+      });
+    });
+  }
+
+  function loadSavedPairing(p){
+    video.src = p.videoUrl;
+    video.load();
+    stageFileName.textContent = p.videoName;
+    dropzone.hidden = true;
+    stageMeta.hidden = false;
+
+    // Restore trim points directly (defaulting missing fields for pairings
+    // saved before the trim feature existed). This must happen here, not in
+    // the loadedmetadata handlers, which only refresh the gradient and must
+    // never reset trim values on their own.
+    videoTrimIn = p.videoTrimIn || 0;
+    videoTrimOut = (p.videoTrimOut != null) ? p.videoTrimOut : null;
+    updateClipTrimUI();
+
+    var targetTab = p.audioMode === 'audio' ? 'audio' : 'spotify';
+    var targetBtn = document.querySelector('.tabs button[data-tab="' + targetTab + '"]');
+    if (targetBtn && !targetBtn.classList.contains('active')) targetBtn.click();
+
+    if (p.audioMode === 'audio') {
+      stopMixerScheduler();
+      audioTracks = (p.audioTracks || []).map(function(td){
+        var el = new Audio();
+        el.src = td.url;
+        return {
+          id: 'track' + (trackIdSeq++),
+          name: td.name,
+          url: td.url,
+          fileDuration: (td.fileDuration != null) ? td.fileDuration : (td.audioOut || 0),
+          clipStart: td.clipStart || 0,
+          audioIn: td.audioIn || 0,
+          audioOut: (td.audioOut != null) ? td.audioOut : (td.fileDuration || 0),
+          volume: (td.volume != null) ? td.volume : 1,
+          crossfade: !!td.crossfade,
+          el: el
+        };
+      });
+      recomputeFades();
+      renderMixer();
+    } else {
+      loadSpotifyThing(p.spotifyUri, p.spotifyLabel);
+      // loadSpotifyThing resets Spotify trim to defaults (it's always a fresh
+      // load of the track); apply the saved trim right after.
+      spotifyTrimIn = p.spotifyTrimIn || 0;
+      spotifyTrimOut = (p.spotifyTrimOut != null) ? p.spotifyTrimOut : null;
+      updateSpotifyTrimUI();
+    }
+    refreshExportState();
+    refreshSaveButtonState();
+  }
+
+  savePairingBtn.addEventListener('click', function(){
+    if (!pairingReady()) return;
+    var pairing = {
+      id: 'p' + Date.now() + Math.random().toString(36).slice(2, 7),
+      videoUrl: video.src,
+      videoName: stageFileName.textContent || 'Clip',
+      videoTrimIn: videoTrimIn || 0,
+      videoTrimOut: (videoTrimOut != null) ? videoTrimOut : null
+    };
+    if (currentAudioTab === 'audio') {
+      pairing.audioMode = 'audio';
+      pairing.audioTracks = audioTracks.map(function(t){
+        return {
+          name: t.name, url: t.url, fileDuration: t.fileDuration,
+          clipStart: t.clipStart, audioIn: t.audioIn, audioOut: t.audioOut,
+          volume: t.volume, crossfade: t.crossfade
+        };
+      });
+    } else {
+      pairing.audioMode = 'spotify';
+      pairing.spotifyUri = currentSpotifyUri;
+      pairing.spotifyLabel = currentSpotifyLabel || currentSpotifyUri;
+      pairing.spotifyTrimIn = spotifyTrimIn || 0;
+      pairing.spotifyTrimOut = (spotifyTrimOut != null) ? spotifyTrimOut : null;
+    }
+    savedPairings.push(pairing);
+    renderSavedPairings();
+  });
+
+  refreshSaveButtonState();
+
+  // ---------- Master transport ----------
+  var isPlaying = false;
+
+  function setPlayingUI(playing){
+    isPlaying = playing;
+    playIcon.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+    playLabel.textContent = playing ? 'Pause' : 'Play';
+  }
+
+  playBtn.addEventListener('click', function(){
+    if (isPlaying){
+      video.pause();
+      if (spotifyMode === 'embed' && spotifyController) spotifyController.pause();
+      if (spotifyMode === 'sdk' && player) player.pause().catch(function(){});
+      stopMixerScheduler();
+      setPlayingUI(false);
+    } else {
+      if (video.src){
+        snapIntoTrim(video, videoTrimIn, videoTrimOut);
+        video.play().catch(function(){});
+      }
+      if (spotifyMode === 'embed' && spotifyController) spotifyController.resume();
+      if (spotifyMode === 'sdk' && player){
+        player.getCurrentState().then(function(state){
+          if (state){
+            var sOutMs = (spotifyTrimOut != null) ? spotifyTrimOut * 1000 : state.duration;
+            if (state.position < spotifyTrimIn * 1000 - 50 || (isFinite(sOutMs) && state.position >= sOutMs - 50)){
+              player.seek(spotifyTrimIn * 1000).catch(function(){});
+            }
+          }
+          player.resume().catch(function(){});
+        }).catch(function(){ player.resume().catch(function(){}); });
+      }
+      setPlayingUI(true);
+      startMixerScheduler();
+    }
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA'){
+      e.preventDefault();
+      playBtn.click();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
